@@ -13,6 +13,11 @@ import { getFileExtension, getFileTypeStyle, formatFileSize } from "@/lib/fileHe
 import { format } from "date-fns";
 
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
+const CANVA_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "pdf"];
+
+const openInCanva = (fileUrl) => {
+  window.open(`https://www.canva.com/create/import/?url=${encodeURIComponent(fileUrl)}`, "_blank");
+};
 const PREVIEWABLE_EXTS = ["pdf", ...IMAGE_EXTS, "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv"];
 
 export default function FileSummaryDialog({ file, open, onOpenChange }) {
@@ -22,6 +27,7 @@ export default function FileSummaryDialog({ file, open, onOpenChange }) {
 
   const ext = getFileExtension(file.original_name);
   const canPreview = PREVIEWABLE_EXTS.includes(ext);
+  const canOpenInCanva = CANVA_EXTS.includes(ext);
   const isImage = IMAGE_EXTS.includes(ext);
   const isPdf = ext === "pdf";
 
@@ -115,6 +121,12 @@ export default function FileSummaryDialog({ file, open, onOpenChange }) {
             {canPreview && (
               <Button variant="outline" className="flex-1 gap-2" onClick={() => setShowPreview(!showPreview)}>
                 {showPreview ? <><EyeOff className="h-4 w-4" /> Hide Preview</> : <><Eye className="h-4 w-4" /> Quick Preview</>}
+              </Button>
+            )}
+            {canOpenInCanva && (
+              <Button variant="outline" className="flex-1 gap-2" onClick={() => openInCanva(file.file_url)}>
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Canva_Logo.svg/24px-Canva_Logo.svg.png" alt="Canva" className="h-4 w-4 object-contain" />
+                Edit in Canva
               </Button>
             )}
             <Button className="flex-1 gap-2" onClick={() => window.open(file.file_url, "_blank")}>

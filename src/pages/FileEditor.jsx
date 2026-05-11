@@ -10,8 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, Upload, Download, Save, Pen, Eraser, Type, Square,
   Circle, Minus, Undo, Redo, Trash2, Loader2, ImageIcon, ZoomIn, ZoomOut,
-  RotateCw, Share2, X, FileText, ExternalLink
+  RotateCw, Share2, X, FileText, ExternalLink, Palette
 } from "lucide-react";
+
+const CANVA_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "pdf"];
 import { getFileExtension, CATEGORIES, ACCESS_LEVELS } from "@/lib/fileHelpers";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
@@ -398,6 +400,11 @@ export default function FileEditor() {
                 <Save className="h-3.5 w-3.5" /> Save to Vault
               </Button>
             </>
+          )}
+          {mode === "editing" && sourceFile && CANVA_EXTS.includes(getFileExtension(sourceFile.original_name || "")) && (
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.open(`https://www.canva.com/create/import/?url=${encodeURIComponent(sourceFile.file_url || docUrl)}`, "_blank")}>
+              <Palette className="h-3.5 w-3.5" /> Edit in Canva
+            </Button>
           )}
           {mode === "editing" && fileKind === "document" && (
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.open(docUrl, "_blank")}>

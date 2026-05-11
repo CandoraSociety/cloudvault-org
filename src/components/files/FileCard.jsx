@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Eye, Clock, Shield, Globe, User, MoreVertical, Trash2, DollarSign, ExternalLink, Building2 } from "lucide-react";
+import { Download, FileText, Eye, Clock, Shield, Globe, User, MoreVertical, Trash2, DollarSign, ExternalLink, Building2, Palette } from "lucide-react";
+
+const CANVA_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "pdf"];
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getFileExtension, getFileTypeStyle, formatFileSize } from "@/lib/fileHelpers";
 import { format } from "date-fns";
@@ -30,6 +32,7 @@ export default function FileCard({ file, onDelete, index = 0 }) {
   const [showSummary, setShowSummary] = useState(false);
   const navigate = useNavigate();
   const ext = getFileExtension(file.original_name);
+  const canOpenInCanva = CANVA_EXTS.includes(ext);
   const style = getFileTypeStyle(ext);
   const AccessIcon = accessIcons[file.access_level] || Globe;
 
@@ -73,6 +76,11 @@ export default function FileCard({ file, onDelete, index = 0 }) {
                     <DropdownMenuItem onClick={() => setShowSummary(true)}>
                       <Eye className="h-4 w-4 mr-2" /> View Summary
                     </DropdownMenuItem>
+                    {canOpenInCanva && (
+                      <DropdownMenuItem onClick={() => window.open(`https://www.canva.com/create/import/?url=${encodeURIComponent(file.file_url)}`, "_blank")}>
+                        <Palette className="h-4 w-4 mr-2" /> Edit in Canva
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={handleDownload}>
                       <Download className="h-4 w-4 mr-2" /> Download
                     </DropdownMenuItem>
