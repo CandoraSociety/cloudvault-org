@@ -2,7 +2,7 @@ import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Shield, Globe, User, Upload, DollarSign } from "lucide-react";
+import { FileText, Shield, Globe, User, Upload, DollarSign, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import StatCard from "@/components/dashboard/StatCard";
@@ -23,6 +23,7 @@ export default function Dashboard() {
   const universalFiles = accessibleFiles.filter((f) => f.access_level === "universal");
   const myFiles = accessibleFiles.filter((f) => f.access_level === "personal" && f.owner_email === user?.email);
   const financeFiles = accessibleFiles.filter((f) => f.access_level === "finance");
+  const corporateFiles = accessibleFiles.filter((f) => f.access_level === "corporate");
 
   if (isLoading) {
     return (
@@ -46,11 +47,12 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard title="Total Files" value={accessibleFiles.length} icon={FileText} description="Files you can access" href="/files" />
         <StatCard title="Universal Files" value={universalFiles.length} icon={Globe} description="Org-wide access" href="/files?access=universal" />
         <StatCard title="Manager Files" value={managerFiles.length} icon={Shield} description="Restricted access" href="/files?access=manager" />
         <StatCard title="Finance Files" value={financeFiles.length} icon={DollarSign} description="Finance-restricted" href="/files?access=finance" />
+        <StatCard title="Corporate Files" value={corporateFiles.length} icon={Building2} description="Official org documents" href="/files?access=corporate" />
         <StatCard title="My Files" value={myFiles.length} icon={User} description="Personal files" href="/files?access=personal" />
       </div>
 

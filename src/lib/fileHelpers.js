@@ -16,6 +16,7 @@ export const ACCESS_LEVELS = [
   { value: "universal", label: "Universal", description: "Everyone in the organization" },
   { value: "manager", label: "Manager", description: "Managers and admins only" },
   { value: "finance", label: "Finance", description: "Select authorized individuals only" },
+  { value: "corporate", label: "Corporate", description: "Certificates, licenses, official docs" },
 ];
 
 export const FILE_TYPE_ICONS = {
@@ -66,7 +67,8 @@ export function generateStandardizedName(originalName, category, accessLevel) {
     .replace(/\s+/g, "-")
     .toLowerCase();
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const prefix = accessLevel === "manager" ? "MGR" : accessLevel === "universal" ? "UNI" : "PER";
+  const prefixMap = { manager: "MGR", universal: "UNI", personal: "PER", finance: "FIN", corporate: "CRP" };
+  const prefix = prefixMap[accessLevel] || "UNI";
   const catCode = category.slice(0, 3).toUpperCase();
   return `${prefix}_${catCode}_${dateStr}_${cleanName}.${ext}`;
 }
@@ -82,5 +84,6 @@ export function canAccessFile(file, user) {
     if (file.finance_authorized_emails?.includes(user.email)) return true;
     return false;
   }
+  if (file.access_level === "corporate") return true; // all users can view corporate docs
   return false;
 }

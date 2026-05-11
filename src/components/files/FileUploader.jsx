@@ -180,9 +180,11 @@ export default function FileUploader({ onUploadComplete }) {
                 {ACCESS_LEVELS.map((al) => {
                   const canSelectManager = user?.role === "admin" || user?.role === "manager";
                   const canSelectFinance = user?.role === "admin" || user?.role === "finance";
+                  const canSelectCorporate = user?.role === "admin";
                   const disabled =
                     (al.value === "manager" && !canSelectManager) ||
-                    (al.value === "finance" && !canSelectFinance);
+                    (al.value === "finance" && !canSelectFinance) ||
+                    (al.value === "corporate" && !canSelectCorporate);
 
                   return (
                     <Card

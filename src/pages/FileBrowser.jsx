@@ -2,12 +2,14 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, LayoutGrid, List } from "lucide-react";
 import SearchBar from "@/components/files/SearchBar";
 import FileFilters from "@/components/files/FileFilters";
 import FileCard from "@/components/files/FileCard";
+import FileListItem from "@/components/files/FileListItem";
 import { canAccessFile, getFileExtension } from "@/lib/fileHelpers";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
 const DOC_EXTS = ["doc", "docx"];
@@ -31,6 +33,7 @@ export default function FileBrowser() {
   const urlParams = new URLSearchParams(window.location.search);
 
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState("grid");
   const [filters, setFilters] = useState({
     category: urlParams.get("category") || "all",
     access: urlParams.get("access") || "all",
@@ -86,13 +89,24 @@ export default function FileBrowser() {
   const accessTitle = filters.access === "manager" ? "Manager Files" :
     filters.access === "universal" ? "Universal Files" :
     filters.access === "personal" ? "My Personal Files" :
-    filters.access === "finance" ? "Finance Files" : "All Files";
+    filters.access === "finance" ? "Finance Files" :
+    filters.access === "corporate" ? "Corporate Files" : "All Files";
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{accessTitle}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{filteredFiles.length} files</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">{accessTitle}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{filteredFiles.length} files</p>
+        </div>
+        <div className="flex items-center gap-1 border rounded-lg p-1">
+          <Button variant={viewMode === "grid" ? "secondary" : "ghost"} size="icon" className="h-7 w-7" onClick={() => setViewMode("grid")}>
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+          <Button variant={viewMode === "list" ? "secondary" : "ghost"} size="icon" className="h-7 w-7" onClick={() => setViewMode("list")}>
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <SearchBar value={search} onChange={setSearch} placeholder="Search by name, description, keywords, type..." />
@@ -107,6 +121,12 @@ export default function FileBrowser() {
           <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
           <p className="text-muted-foreground font-medium">No files found</p>
           <p className="text-sm text-muted-foreground mt-1">Try adjusting your search or filters</p>
+        </div>
+      ) : viewMode === "list" ? (
+        <div className="space-y-1.5">
+          {filteredFiles.map((file, i) => (
+            <FileListItem key={file.id} file={file} index={i} onDelete={handleDelete} />
+          ))}
         </div>
       ) : (
         <div className="grid gap-3">

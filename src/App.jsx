@@ -12,6 +12,7 @@ import FileBrowser from './pages/FileBrowser';
 import UploadPage from './pages/UploadPage';
 import SearchPage from './pages/SearchPage';
 import FileViewer from './pages/FileViewer';
+import FileEditor from './pages/FileEditor';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -42,6 +43,7 @@ const AuthenticatedApp = () => {
         <Route path="/search" element={<SearchPage />} />
       </Route>
       <Route path="/view" element={<FileViewer />} />
+      <Route path="/edit" element={<FileEditor />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

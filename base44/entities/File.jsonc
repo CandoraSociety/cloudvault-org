@@ -63,7 +63,8 @@
         "personal",
         "universal",
         "manager",
-        "finance"
+        "finance",
+        "corporate"
       ],
       "description": "Who can access this file"
     },
@@ -81,6 +82,10 @@
     "owner_name": {
       "type": "string",
       "description": "Name of file owner"
+    },
+    "source_app": {
+      "type": "string",
+      "description": "Name of the app that triggered this upload (for cross-app automation)"
     }
   },
   "required": [

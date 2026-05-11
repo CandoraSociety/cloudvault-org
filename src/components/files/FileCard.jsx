@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Eye, Clock, Shield, Globe, User, MoreVertical, Trash2, DollarSign, ExternalLink } from "lucide-react";
+import { Download, FileText, Eye, Clock, Shield, Globe, User, MoreVertical, Trash2, DollarSign, ExternalLink, Building2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getFileExtension, getFileTypeStyle, formatFileSize } from "@/lib/fileHelpers";
 import { format } from "date-fns";
@@ -15,6 +15,7 @@ const accessIcons = {
   universal: Globe,
   manager: Shield,
   finance: DollarSign,
+  corporate: Building2,
 };
 
 const accessLabels = {
@@ -22,6 +23,7 @@ const accessLabels = {
   universal: "Universal",
   manager: "Manager",
   finance: "Finance",
+  corporate: "Corporate",
 };
 
 export default function FileCard({ file, onDelete, index = 0 }) {
@@ -64,6 +66,9 @@ export default function FileCard({ file, onDelete, index = 0 }) {
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => navigate(`/view?id=${file.id}`)}>
                       <ExternalLink className="h-4 w-4 mr-2" /> Open File
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate(`/edit?id=${file.id}`)}>
+                      <Eye className="h-4 w-4 mr-2" /> Edit Image
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setShowSummary(true)}>
                       <Eye className="h-4 w-4 mr-2" /> View Summary
