@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import {
   FolderOpen, Search, Upload, Home, Shield, Globe, User,
-  Menu, X, LogOut, ChevronRight, DollarSign, Building2, Pencil, FolderHeart, LayoutDashboard, PackagePlus
+  Menu, X, LogOut, ChevronRight, DollarSign, Building2, Pencil, FolderHeart, LayoutDashboard, PackagePlus, StickyNote
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
@@ -22,6 +22,7 @@ const ALL_NAV_ITEMS = [
   { path: "/bulk-upload", label: "Bulk Import", icon: PackagePlus, roles: null },
   { path: "/collections", label: "Collections", icon: FolderHeart, roles: null },
   { path: "/workspace", label: "My Workspace", icon: LayoutDashboard, roles: null },
+  { path: "/notes", label: "Notes", icon: StickyNote, roles: null },
   { path: "/edit", label: "File Editor", icon: Pencil, roles: null },
 ];
 

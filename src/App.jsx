@@ -16,6 +16,8 @@ import FileEditor from './pages/FileEditor';
 import Collections from './pages/Collections';
 import Workspace from './pages/Workspace';
 import BulkUpload from './pages/BulkUpload';
+import Notes from './pages/Notes';
+import FloatingNoteButton from './components/notes/FloatingNoteButton';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -38,20 +40,24 @@ const AuthenticatedApp = () => {
   }
 
   return (
-    <Routes>
-      <Route element={<AppLayout />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/files" element={<FileBrowser />} />
-        <Route path="/upload" element={<UploadPage />} />
-        <Route path="/search" element={<SearchPage />} />
-        <Route path="/collections" element={<Collections />} />
-        <Route path="/workspace" element={<Workspace />} />
-        <Route path="/bulk-upload" element={<BulkUpload />} />
-      </Route>
-      <Route path="/view" element={<FileViewer />} />
-      <Route path="/edit" element={<FileEditor />} />
-      <Route path="*" element={<PageNotFound />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/files" element={<FileBrowser />} />
+          <Route path="/upload" element={<UploadPage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/collections" element={<Collections />} />
+          <Route path="/workspace" element={<Workspace />} />
+          <Route path="/notes" element={<Notes />} />
+          <Route path="/bulk-upload" element={<BulkUpload />} />
+        </Route>
+        <Route path="/view" element={<FileViewer />} />
+        <Route path="/edit" element={<FileEditor />} />
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+      <FloatingNoteButton />
+    </>
   );
 };
 

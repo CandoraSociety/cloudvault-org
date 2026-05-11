@@ -1,0 +1,39 @@
+{
+  "name": "Note",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Note title"
+    },
+    "content": {
+      "type": "string",
+      "description": "Rich text content (HTML from Quill)"
+    },
+    "collection_id": {
+      "type": "string",
+      "description": "Optional reference to a Collection"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Search tags for organization"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Email of note owner"
+    },
+    "is_pinned": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether note is pinned to dashboard"
+    }
+  },
+  "required": [
+    "title",
+    "content",
+    "owner_email"
+  ]
+}

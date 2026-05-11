@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import StatCard from "@/components/dashboard/StatCard";
 import RecentFiles from "@/components/dashboard/RecentFiles";
+import RecentNotes from "@/components/dashboard/RecentNotes";
 import CategoryBreakdown from "@/components/dashboard/CategoryBreakdown";
 import SortingTasksBanner from "@/components/dashboard/SortingTasksBanner";
 import { canAccessFile } from "@/lib/fileHelpers";
@@ -17,6 +18,11 @@ export default function Dashboard() {
   const { data: allFiles = [], isLoading } = useQuery({
     queryKey: ["files"],
     queryFn: () => base44.entities.File.list("-created_date", 200),
+  });
+
+  const { data: allNotes = [] } = useQuery({
+    queryKey: ["notes"],
+    queryFn: () => base44.entities.Note.list("-updated_date", 10),
   });
 
   const accessibleFiles = allFiles.filter((f) => canAccessFile(f, user));
@@ -64,7 +70,8 @@ export default function Dashboard() {
         <div className="lg:col-span-2">
           <RecentFiles files={accessibleFiles} />
         </div>
-        <div>
+        <div className="space-y-6">
+          <RecentNotes notes={allNotes} />
           <CategoryBreakdown files={accessibleFiles} />
         </div>
       </div>
