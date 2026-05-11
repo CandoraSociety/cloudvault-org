@@ -7,7 +7,8 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Calendar, User, Tag, Eye, EyeOff } from "lucide-react";
+import { Download, FileText, Calendar, User, Tag, Eye, EyeOff, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { getFileExtension, getFileTypeStyle, formatFileSize } from "@/lib/fileHelpers";
 import { format } from "date-fns";
 
@@ -16,6 +17,7 @@ const PREVIEWABLE_EXTS = ["pdf", ...IMAGE_EXTS, "doc", "docx", "xls", "xlsx", "p
 
 export default function FileSummaryDialog({ file, open, onOpenChange }) {
   const [showPreview, setShowPreview] = useState(false);
+  const navigate = useNavigate();
   if (!file) return null;
 
   const ext = getFileExtension(file.original_name);
@@ -106,14 +108,17 @@ export default function FileSummaryDialog({ file, open, onOpenChange }) {
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" className="flex-1 gap-2" onClick={() => { onOpenChange(false); navigate(`/view?id=${file.id}`); }}>
+              <ExternalLink className="h-4 w-4" /> Open File
+            </Button>
             {canPreview && (
               <Button variant="outline" className="flex-1 gap-2" onClick={() => setShowPreview(!showPreview)}>
-                {showPreview ? <><EyeOff className="h-4 w-4" /> Hide Preview</> : <><Eye className="h-4 w-4" /> Preview File</>}
+                {showPreview ? <><EyeOff className="h-4 w-4" /> Hide Preview</> : <><Eye className="h-4 w-4" /> Quick Preview</>}
               </Button>
             )}
-            <Button className={canPreview ? "flex-1 gap-2" : "w-full gap-2"} onClick={() => window.open(file.file_url, "_blank")}>
-              <Download className="h-4 w-4" /> Download File
+            <Button className="flex-1 gap-2" onClick={() => window.open(file.file_url, "_blank")}>
+              <Download className="h-4 w-4" /> Download
             </Button>
           </div>
         </div>

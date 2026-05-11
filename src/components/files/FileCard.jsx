@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Eye, Clock, Shield, Globe, User, MoreVertical, Trash2, DollarSign } from "lucide-react";
+import { Download, FileText, Eye, Clock, Shield, Globe, User, MoreVertical, Trash2, DollarSign, ExternalLink } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getFileExtension, getFileTypeStyle, formatFileSize } from "@/lib/fileHelpers";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import FileSummaryDialog from "./FileSummaryDialog";
 
 const accessIcons = {
@@ -25,6 +26,7 @@ const accessLabels = {
 
 export default function FileCard({ file, onDelete, index = 0 }) {
   const [showSummary, setShowSummary] = useState(false);
+  const navigate = useNavigate();
   const ext = getFileExtension(file.original_name);
   const style = getFileTypeStyle(ext);
   const AccessIcon = accessIcons[file.access_level] || Globe;
@@ -60,11 +62,14 @@ export default function FileCard({ file, onDelete, index = 0 }) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleDownload}>
-                      <Download className="h-4 w-4 mr-2" /> Download
+                    <DropdownMenuItem onClick={() => navigate(`/view?id=${file.id}`)}>
+                      <ExternalLink className="h-4 w-4 mr-2" /> Open File
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setShowSummary(true)}>
                       <Eye className="h-4 w-4 mr-2" /> View Summary
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleDownload}>
+                      <Download className="h-4 w-4 mr-2" /> Download
                     </DropdownMenuItem>
                     {onDelete && (
                       <DropdownMenuItem onClick={() => onDelete(file)} className="text-destructive">
