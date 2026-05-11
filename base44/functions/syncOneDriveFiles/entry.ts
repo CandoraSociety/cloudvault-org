@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
             file_type: getFileExtension(odFile.name),
             file_size: odFile.size || 0,
             category: 'to_be_sorted',
-            access_level: 'universal',
+            access_level: 'personal',
             owner_email: user.email,
             owner_name: user.full_name,
           });
