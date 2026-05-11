@@ -43,7 +43,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <SortingTasksBanner count={unsortedFiles.length} />
+      <SortingTasksBanner count={unsortedFiles.length} files={unsortedFiles} />
 
       <div className="flex items-center justify-between">
         <div>

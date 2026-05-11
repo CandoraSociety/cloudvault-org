@@ -33,6 +33,12 @@ export const CATEGORIES = [
   { value: "training", label: "Training & Development" },
 ];
 
+export const FILE_CATEGORIES = [
+  { value: "to_be_sorted", label: "Pending Sort" },
+  ...CATEGORIES,
+  ...PHOTO_CATEGORIES,
+];
+
 export const ACCESS_LEVELS = [
   { value: "personal", label: "Personal", description: "Only you can access" },
   { value: "universal", label: "Universal", description: "Everyone in the organization" },

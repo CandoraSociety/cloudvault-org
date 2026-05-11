@@ -2,7 +2,11 @@ import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Eye, Clock, Shield, Globe, User, MoreVertical, Trash2, DollarSign, ExternalLink, Building2, Palette } from "lucide-react";
+import { Download, FileText, Eye, Clock, Shield, Globe, User, MoreVertical, Trash2, DollarSign, ExternalLink, Building2, Palette, ChevronDown } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { FILE_CATEGORIES } from "@/lib/fileHelpers";
 
 const CANVA_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "pdf"];
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -31,13 +35,25 @@ const accessLabels = {
 export default function FileCard({ file, onDelete, index = 0 }) {
   const [showSummary, setShowSummary] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const ext = getFileExtension(file.original_name);
   const canOpenInCanva = CANVA_EXTS.includes(ext);
   const style = getFileTypeStyle(ext);
   const AccessIcon = accessIcons[file.access_level] || Globe;
 
+  const updateCategoryMutation = useMutation({
+    mutationFn: (newCategory) => base44.entities.File.update(file.id, { category: newCategory }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["files"] });
+    },
+  });
+
   const handleDownload = () => {
     window.open(file.file_url, "_blank");
+  };
+
+  const handleCategoryChange = (newCategory) => {
+    updateCategoryMutation.mutate(newCategory);
   };
 
   return (
@@ -102,9 +118,20 @@ export default function FileCard({ file, onDelete, index = 0 }) {
                   <AccessIcon className="h-3 w-3" />
                   {accessLabels[file.access_level]}
                 </Badge>
-                <Badge variant="outline" className="text-xs px-2 py-0.5 capitalize">
-                  {file.category?.replace(/_/g, " ")}
-                </Badge>
+
+                <Select value={file.category || "to_be_sorted"} onValueChange={handleCategoryChange}>
+                  <SelectTrigger className="h-6 w-auto border-border/60 text-xs px-2 py-0.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    {FILE_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
                 <span className="text-xs text-muted-foreground uppercase font-medium">{ext}</span>
                 <span className="text-xs text-muted-foreground">{formatFileSize(file.file_size)}</span>
               </div>
