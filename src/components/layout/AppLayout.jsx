@@ -9,23 +9,27 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS = [
-  { path: "/", label: "Dashboard", icon: Home },
-  { path: "/files", label: "All Files", icon: FolderOpen },
-  { path: "/files?access=manager", label: "Manager Files", icon: Shield },
-  { path: "/files?access=universal", label: "Universal Files", icon: Globe },
-  { path: "/files?access=personal", label: "My Files", icon: User },
-  { path: "/files?access=finance", label: "Finance Files", icon: DollarSign },
-  { path: "/files?access=corporate", label: "Corporate Files", icon: Building2 },
-  { path: "/search", label: "Search", icon: Search },
-  { path: "/upload", label: "Upload", icon: Upload },
-  { path: "/edit", label: "Image Editor", icon: Pencil },
+const ALL_NAV_ITEMS = [
+  { path: "/", label: "Dashboard", icon: Home, roles: null },
+  { path: "/files", label: "All Files", icon: FolderOpen, roles: null },
+  { path: "/files?access=universal", label: "Universal Files", icon: Globe, roles: null },
+  { path: "/files?access=personal", label: "My Files", icon: User, roles: null },
+  { path: "/files?access=manager", label: "Manager Files", icon: Shield, roles: ["admin", "manager"] },
+  { path: "/files?access=finance", label: "Finance Files", icon: DollarSign, roles: ["admin", "finance"] },
+  { path: "/files?access=corporate", label: "Corporate Files", icon: Building2, roles: ["admin", "corporate"] },
+  { path: "/search", label: "Search", icon: Search, roles: null },
+  { path: "/upload", label: "Upload", icon: Upload, roles: null },
+  { path: "/edit", label: "File Editor", icon: Pencil, roles: null },
 ];
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { user } = useAuth();
+
+  const navItems = ALL_NAV_ITEMS.filter((item) =>
+    !item.roles || item.roles.includes(user?.role)
+  );
 
   const isActive = (path) => {
     if (path === "/") return location.pathname === "/";
@@ -62,7 +66,7 @@ export default function AppLayout() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
             return (
