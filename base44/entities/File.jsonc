@@ -1,0 +1,84 @@
+{
+  "name": "File",
+  "type": "object",
+  "properties": {
+    "original_name": {
+      "type": "string",
+      "description": "Original file name as uploaded"
+    },
+    "standardized_name": {
+      "type": "string",
+      "description": "Auto-generated standardized file name"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "User-friendly display name"
+    },
+    "description": {
+      "type": "string",
+      "description": "File description"
+    },
+    "summary": {
+      "type": "string",
+      "description": "AI-generated quick access summary"
+    },
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Searchable keywords/tags"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL of the uploaded file"
+    },
+    "file_type": {
+      "type": "string",
+      "description": "File extension/type (pdf, docx, xlsx, etc.)"
+    },
+    "file_size": {
+      "type": "number",
+      "description": "File size in bytes"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "finance",
+        "hr",
+        "operations",
+        "legal",
+        "marketing",
+        "engineering",
+        "general",
+        "policies",
+        "reports",
+        "templates"
+      ],
+      "description": "File category"
+    },
+    "access_level": {
+      "type": "string",
+      "enum": [
+        "personal",
+        "universal",
+        "manager"
+      ],
+      "description": "Who can access this file"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Email of file owner (for personal files)"
+    },
+    "owner_name": {
+      "type": "string",
+      "description": "Name of file owner"
+    }
+  },
+  "required": [
+    "original_name",
+    "file_url",
+    "access_level",
+    "category"
+  ]
+}
