@@ -132,10 +132,12 @@ export default function PhotoSorterDialog({ photos, onDone, onCancel }) {
 
   const handleCategoryClick = (catValue) => {
     setCategory(current.id, catValue);
-    // If there are remaining unassigned photos, offer to apply to similar
-    const remaining = photos.filter((p, i) => i !== index && assignments[p.id] === "to_be_sorted");
-    if (catValue !== "to_be_sorted" && remaining.length > 0) {
-      setApplyOverlay({ category: catValue });
+    // Show overlay if picking a real category (not "sort later") and there are unassigned photos
+    if (catValue !== "to_be_sorted") {
+      const remaining = photos.filter((p, i) => i !== index && assignments[p.id] === "to_be_sorted");
+      if (remaining.length > 0) {
+        setApplyOverlay({ category: catValue });
+      }
     }
   };
 
@@ -223,7 +225,7 @@ export default function PhotoSorterDialog({ photos, onDone, onCancel }) {
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => {
-              setCategory(current.id, "to_be_sorted");
+              setAssignments(prev => ({ ...prev, [current.id]: "to_be_sorted" }));
               handleNext();
             }}>
               <SkipForward className="h-4 w-4" /> Sort Later
