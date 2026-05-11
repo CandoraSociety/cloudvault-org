@@ -1,24 +1,28 @@
 import React, { useState, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Upload, X, FileText, Loader2, Sparkles } from "lucide-react";
-import { CATEGORIES, ACCESS_LEVELS, getFileExtension, generateStandardizedName } from "@/lib/fileHelpers";
+import { ACCESS_LEVELS, getFileExtension, generateStandardizedName } from "@/lib/fileHelpers";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import CategorySelector from "./CategorySelector";
 
 export default function FileUploader({ onUploadComplete }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [file, setFile] = useState(null);
+  const [uploadedUrl, setUploadedUrl] = useState(null);
   const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("general");
+  const [subcategory, setSubcategory] = useState("");
   const [accessLevel, setAccessLevel] = useState("universal");
   const [keywords, setKeywords] = useState([]);
   const [keywordInput, setKeywordInput] = useState("");
@@ -27,21 +31,31 @@ export default function FileUploader({ onUploadComplete }) {
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
 
+  const { data: categories = [], refetch: refetchCategories } = useQuery({
+    queryKey: ["file-categories"],
+    queryFn: () => base44.entities.FileCategory.list("label", 200),
+  });
+
+  const selectFile = async (f) => {
+    setFile(f);
+    setUploadedUrl(null);
+    setDisplayName(f.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
+    // Pre-upload so CategorySelector can read the file for AI analysis
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file: f });
+      setUploadedUrl(file_url);
+    } catch (_) {}
+  };
+
   const handleFileSelect = useCallback((e) => {
     const f = e.target.files?.[0];
-    if (f) {
-      setFile(f);
-      setDisplayName(f.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
-    }
+    if (f) selectFile(f);
   }, []);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
     const f = e.dataTransfer.files?.[0];
-    if (f) {
-      setFile(f);
-      setDisplayName(f.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
-    }
+    if (f) selectFile(f);
   }, []);
 
   const addKeyword = () => {
@@ -82,10 +96,16 @@ export default function FileUploader({ onUploadComplete }) {
     if (!file) return;
     setUploading(true);
 
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    // Reuse pre-uploaded URL if available, otherwise upload now
+    let file_url = uploadedUrl;
+    if (!file_url) {
+      const result = await base44.integrations.Core.UploadFile({ file });
+      file_url = result.file_url;
+    }
 
     let summary = "";
     summary = await generateSummary(file_url);
+
 
     const standardizedName = generateStandardizedName(file.name, category, accessLevel);
 
@@ -100,17 +120,26 @@ export default function FileUploader({ onUploadComplete }) {
       file_type: getFileExtension(file.name),
       file_size: file.size,
       category,
+      subcategory: subcategory || undefined,
       access_level: accessLevel,
       finance_authorized_emails: accessLevel === "finance" ? financeEmails : [],
       owner_email: user?.email,
       owner_name: user?.full_name,
     });
 
+    // Increment usage count for the chosen category
+    const catRecord = categories.find((c) => c.value === category);
+    if (catRecord) {
+      await base44.entities.FileCategory.update(catRecord.id, { usage_count: (catRecord.usage_count || 0) + 1 });
+    }
+
     toast.success("File uploaded successfully!");
     setFile(null);
+    setUploadedUrl(null);
     setDisplayName("");
     setDescription("");
     setCategory("general");
+    setSubcategory("");
     setAccessLevel("universal");
     setKeywords([]);
     setFinanceEmails([]);
@@ -138,7 +167,7 @@ export default function FileUploader({ onUploadComplete }) {
                 <p className="font-medium text-sm">{file.name}</p>
                 <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 ml-2" onClick={(e) => { e.stopPropagation(); setFile(null); }}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 ml-2" onClick={(e) => { e.stopPropagation(); setFile(null); setUploadedUrl(null); }}>
                 <X className="h-4 w-4" />
               </Button>
             </motion.div>
@@ -156,23 +185,21 @@ export default function FileUploader({ onUploadComplete }) {
       <AnimatePresence>
         {file && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Display Name</Label>
-                <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Friendly file name" />
-              </div>
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label>Display Name</Label>
+              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Friendly file name" />
             </div>
+
+            <CategorySelector
+              file={file}
+              fileUrl={uploadedUrl}
+              categories={categories}
+              value={category}
+              subcategory={subcategory}
+              onChange={setCategory}
+              onSubcategoryChange={setSubcategory}
+              onCategoriesUpdated={() => refetchCategories()}
+            />
 
             <div className="space-y-2">
               <Label>Access Level</Label>

@@ -43,19 +43,11 @@
     },
     "category": {
       "type": "string",
-      "enum": [
-        "finance",
-        "hr",
-        "operations",
-        "legal",
-        "marketing",
-        "engineering",
-        "general",
-        "policies",
-        "reports",
-        "templates"
-      ],
-      "description": "File category"
+      "description": "File category (value from FileCategory)"
+    },
+    "subcategory": {
+      "type": "string",
+      "description": "Optional subcategory for finer classification"
     },
     "access_level": {
       "type": "string",

@@ -1,0 +1,36 @@
+{
+  "name": "FileCategory",
+  "type": "object",
+  "properties": {
+    "value": {
+      "type": "string",
+      "description": "Unique category key (slug, e.g. 'grants_federal')"
+    },
+    "label": {
+      "type": "string",
+      "description": "Human-readable label"
+    },
+    "parent_category": {
+      "type": "string",
+      "description": "Parent category value (for subcategories)"
+    },
+    "description": {
+      "type": "string",
+      "description": "What kinds of files belong here"
+    },
+    "usage_count": {
+      "type": "number",
+      "description": "How many files have been assigned this category",
+      "default": 0
+    },
+    "is_system": {
+      "type": "boolean",
+      "description": "True for built-in categories that cannot be deleted",
+      "default": false
+    }
+  },
+  "required": [
+    "value",
+    "label"
+  ]
+}
