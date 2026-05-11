@@ -85,7 +85,8 @@ export default function FileBrowser() {
 
   const accessTitle = filters.access === "manager" ? "Manager Files" :
     filters.access === "universal" ? "Universal Files" :
-    filters.access === "personal" ? "My Personal Files" : "All Files";
+    filters.access === "personal" ? "My Personal Files" :
+    filters.access === "finance" ? "Finance Files" : "All Files";
 
   return (
     <div className="space-y-6">

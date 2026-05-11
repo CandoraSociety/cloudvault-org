@@ -2,7 +2,7 @@ import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Shield, Globe, User, Upload } from "lucide-react";
+import { FileText, Shield, Globe, User, Upload, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import StatCard from "@/components/dashboard/StatCard";
@@ -22,6 +22,7 @@ export default function Dashboard() {
   const managerFiles = accessibleFiles.filter((f) => f.access_level === "manager");
   const universalFiles = accessibleFiles.filter((f) => f.access_level === "universal");
   const myFiles = accessibleFiles.filter((f) => f.access_level === "personal" && f.owner_email === user?.email);
+  const financeFiles = accessibleFiles.filter((f) => f.access_level === "finance");
 
   if (isLoading) {
     return (
@@ -45,10 +46,11 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard title="Total Files" value={accessibleFiles.length} icon={FileText} description="Files you can access" />
-        <StatCard title="Manager Files" value={managerFiles.length} icon={Shield} description="Restricted access" />
         <StatCard title="Universal Files" value={universalFiles.length} icon={Globe} description="Org-wide access" />
+        <StatCard title="Manager Files" value={managerFiles.length} icon={Shield} description="Restricted access" />
+        <StatCard title="Finance Files" value={financeFiles.length} icon={DollarSign} description="Finance-restricted" />
         <StatCard title="My Files" value={myFiles.length} icon={User} description="Personal files" />
       </div>
 

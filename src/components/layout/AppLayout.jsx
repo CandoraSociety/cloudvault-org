@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import {
   FolderOpen, Search, Upload, Home, Shield, Globe, User,
-  Menu, X, LogOut, ChevronRight
+  Menu, X, LogOut, ChevronRight, DollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { path: "/files?access=manager", label: "Manager Files", icon: Shield },
   { path: "/files?access=universal", label: "Universal Files", icon: Globe },
   { path: "/files?access=personal", label: "My Files", icon: User },
+  { path: "/files?access=finance", label: "Finance Files", icon: DollarSign },
   { path: "/search", label: "Search", icon: Search },
   { path: "/upload", label: "Upload", icon: Upload },
 ];

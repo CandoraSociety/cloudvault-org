@@ -7,10 +7,11 @@
       "enum": [
         "admin",
         "manager",
+        "finance",
         "user"
       ],
       "default": "user",
-      "description": "User role: admin (full access), manager (manager files), user (universal + personal)"
+      "description": "User role: admin (full access), manager (manager files), finance (finance-restricted files), user (universal + personal)"
     },
     "department": {
       "type": "string",

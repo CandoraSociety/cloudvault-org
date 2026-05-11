@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Eye, Clock, Shield, Globe, User, MoreVertical, Trash2 } from "lucide-react";
+import { Download, FileText, Eye, Clock, Shield, Globe, User, MoreVertical, Trash2, DollarSign } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getFileExtension, getFileTypeStyle, formatFileSize } from "@/lib/fileHelpers";
 import { format } from "date-fns";
@@ -13,12 +13,14 @@ const accessIcons = {
   personal: User,
   universal: Globe,
   manager: Shield,
+  finance: DollarSign,
 };
 
 const accessLabels = {
   personal: "Personal",
   universal: "Universal",
   manager: "Manager",
+  finance: "Finance",
 };
 
 export default function FileCard({ file, onDelete, index = 0 }) {

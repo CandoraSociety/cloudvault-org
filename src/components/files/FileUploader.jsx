@@ -22,6 +22,8 @@ export default function FileUploader({ onUploadComplete }) {
   const [accessLevel, setAccessLevel] = useState("universal");
   const [keywords, setKeywords] = useState([]);
   const [keywordInput, setKeywordInput] = useState("");
+  const [financeEmails, setFinanceEmails] = useState([]);
+  const [financeEmailInput, setFinanceEmailInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
 
@@ -99,6 +101,7 @@ export default function FileUploader({ onUploadComplete }) {
       file_size: file.size,
       category,
       access_level: accessLevel,
+      finance_authorized_emails: accessLevel === "finance" ? financeEmails : [],
       owner_email: user?.email,
       owner_name: user?.full_name,
     });
@@ -110,6 +113,8 @@ export default function FileUploader({ onUploadComplete }) {
     setCategory("general");
     setAccessLevel("universal");
     setKeywords([]);
+    setFinanceEmails([]);
+    setFinanceEmailInput("");
     setUploading(false);
     setGenerating(false);
     onUploadComplete?.();
@@ -177,6 +182,10 @@ export default function FileUploader({ onUploadComplete }) {
                   const canSelectManager = user?.role === "admin" || user?.role === "manager";
                   const disabled = isManagerOption && !canSelectManager;
 
+                  const isFinanceOption = al.value === "finance";
+                  const canSelectFinance = user?.role === "admin" || user?.role === "finance";
+                  if (isFinanceOption) disabled = !canSelectFinance;
+
                   return (
                     <Card
                       key={al.value}
@@ -193,6 +202,50 @@ export default function FileUploader({ onUploadComplete }) {
                 })}
               </div>
             </div>
+
+            {accessLevel === "finance" && (
+              <div className="space-y-2">
+                <Label>Authorized Emails</Label>
+                <p className="text-xs text-muted-foreground">Add specific individuals who can access this finance file (in addition to Finance role users and Admins).</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={financeEmailInput}
+                    onChange={(e) => setFinanceEmailInput(e.target.value)}
+                    placeholder="user@company.com"
+                    type="email"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const em = financeEmailInput.trim().toLowerCase();
+                        if (em && !financeEmails.includes(em)) {
+                          setFinanceEmails([...financeEmails, em]);
+                          setFinanceEmailInput("");
+                        }
+                      }
+                    }}
+                  />
+                  <Button variant="outline" type="button" onClick={() => {
+                    const em = financeEmailInput.trim().toLowerCase();
+                    if (em && !financeEmails.includes(em)) {
+                      setFinanceEmails([...financeEmails, em]);
+                      setFinanceEmailInput("");
+                    }
+                  }}>Add</Button>
+                </div>
+                {financeEmails.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {financeEmails.map((em) => (
+                      <Badge key={em} variant="secondary" className="gap-1 pr-1">
+                        {em}
+                        <button onClick={() => setFinanceEmails(financeEmails.filter((e) => e !== em))} className="hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Description</Label>

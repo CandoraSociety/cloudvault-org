@@ -34,6 +34,7 @@ export default function FileFilters({ filters, onFilterChange }) {
           {ACCESS_LEVELS.map((a) => (
             <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
           ))}
+
         </SelectContent>
       </Select>
 

@@ -62,9 +62,17 @@
       "enum": [
         "personal",
         "universal",
-        "manager"
+        "manager",
+        "finance"
       ],
       "description": "Who can access this file"
+    },
+    "finance_authorized_emails": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of emails authorized to access finance-level files"
     },
     "owner_email": {
       "type": "string",

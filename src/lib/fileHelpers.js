@@ -15,6 +15,7 @@ export const ACCESS_LEVELS = [
   { value: "personal", label: "Personal", description: "Only you can access" },
   { value: "universal", label: "Universal", description: "Everyone in the organization" },
   { value: "manager", label: "Manager", description: "Managers and admins only" },
+  { value: "finance", label: "Finance", description: "Select authorized individuals only" },
 ];
 
 export const FILE_TYPE_ICONS = {
@@ -76,5 +77,10 @@ export function canAccessFile(file, user) {
   if (file.access_level === "universal") return true;
   if (file.access_level === "personal" && file.owner_email === user.email) return true;
   if (file.access_level === "manager" && (user.role === "manager" || user.role === "admin")) return true;
+  if (file.access_level === "finance") {
+    if (user.role === "finance" || user.role === "admin") return true;
+    if (file.finance_authorized_emails?.includes(user.email)) return true;
+    return false;
+  }
   return false;
 }
