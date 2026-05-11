@@ -2,12 +2,13 @@ import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Clock } from "lucide-react";
+import { Download, FileText, ExternalLink } from "lucide-react";
 import { getFileExtension, getFileTypeStyle, formatFileSize } from "@/lib/fileHelpers";
 import { format } from "date-fns";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function RecentFiles({ files }) {
+  const navigate = useNavigate();
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -38,14 +39,26 @@ export default function RecentFiles({ files }) {
                     <span>{file.created_date ? format(new Date(file.created_date), "MMM d") : ""}</span>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => window.open(file.file_url, "_blank")}
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    title="Open file"
+                    onClick={() => navigate(`/view?id=${file.id}`)}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    title="Download"
+                    onClick={() => window.open(file.file_url, "_blank")}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             );
           })

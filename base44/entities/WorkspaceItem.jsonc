@@ -6,6 +6,10 @@
       "type": "string",
       "description": "Email of the workspace owner"
     },
+    "workspace_group": {
+      "type": "string",
+      "description": "Named group this item belongs to (e.g. 'Grant Submission 2024')"
+    },
     "file_id": {
       "type": "string",
       "description": "Reference to a vault file (if pinned from vault)"
