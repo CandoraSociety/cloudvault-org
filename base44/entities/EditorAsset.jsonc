@@ -1,0 +1,44 @@
+{
+  "name": "EditorAsset",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Friendly name for this asset"
+    },
+    "asset_type": {
+      "type": "string",
+      "enum": [
+        "logo",
+        "header_template",
+        "footer_template",
+        "watermark_template",
+        "cover_template",
+        "image"
+      ],
+      "description": "Type of editor asset"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL of the uploaded asset image"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Who uploaded this asset"
+    },
+    "is_shared": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, visible to all users"
+    },
+    "template_config": {
+      "type": "object",
+      "description": "JSON config for header/footer/watermark templates (text, font, color, position, opacity etc.)"
+    }
+  },
+  "required": [
+    "name",
+    "asset_type",
+    "file_url"
+  ]
+}

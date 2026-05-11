@@ -5,18 +5,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, Upload, Download, Save, Pen, Eraser, Type, Square,
   Circle, Minus, Undo, Redo, Trash2, Loader2, ImageIcon, ZoomIn, ZoomOut,
-  RotateCw, Share2, X, FileText, ExternalLink, PenLine, Highlighter,
-  StickyNote, Move
+  Share2, X, FileText, ExternalLink, PenLine, Highlighter, StickyNote, LayoutTemplate
 } from "lucide-react";
 import SignatureDialog from "@/components/files/SignatureDialog";
 import ShareDialog from "@/components/files/ShareDialog";
 import SaveVaultDialog from "@/components/files/SaveVaultDialog";
-import { getFileExtension, CATEGORIES, ACCESS_LEVELS, generateStandardizedName } from "@/lib/fileHelpers";
+import DocumentOverlayPanel from "@/components/editor/DocumentOverlayPanel";
+import { getFileExtension, generateStandardizedName } from "@/lib/fileHelpers";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -24,6 +23,18 @@ const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "bmp"];
 const COLORS = ["#000000", "#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#8b5cf6", "#ffffff"];
 const HIGHLIGHT_COLORS = ["#fef08a", "#86efac", "#93c5fd", "#fca5a5", "#d8b4fe"];
 const SIZES = [2, 4, 8, 14, 20];
+
+const DRAW_TOOLS = [
+  { id: "pen", icon: Pen, label: "Freehand Draw" },
+  { id: "eraser", icon: Eraser, label: "Eraser" },
+  { id: "highlight", icon: Highlighter, label: "Highlight" },
+  { id: "line", icon: Minus, label: "Line" },
+  { id: "rect", icon: Square, label: "Rectangle" },
+  { id: "circle", icon: Circle, label: "Ellipse" },
+  { id: "text", icon: Type, label: "Add Text" },
+  { id: "sticky", icon: StickyNote, label: "Sticky Note" },
+  { id: "sign", icon: PenLine, label: "Signature" },
+];
 
 export default function FileEditor() {
   const navigate = useNavigate();
@@ -34,12 +45,13 @@ export default function FileEditor() {
 
   const [mode, setMode] = useState(fileId ? "loading" : "select");
   const [sourceFile, setSourceFile] = useState(null);
-  const [fileKind, setFileKind] = useState(null); // "image" | "document"
+  const [fileKind, setFileKind] = useState(null);
   const [docUrl, setDocUrl] = useState(null);
+  const [rightPanel, setRightPanel] = useState("tools"); // "tools" | "overlays"
 
-  // Canvas state
+  // Canvas
   const canvasRef = useRef(null);
-  const overlayCanvasRef = useRef(null); // for documents
+  const overlayCanvasRef = useRef(null);
   const [ctx, setCtx] = useState(null);
   const [tool, setTool] = useState("pen");
   const [color, setColor] = useState("#000000");
@@ -52,7 +64,6 @@ export default function FileEditor() {
   const [textPos, setTextPos] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [stickyText, setStickyText] = useState("");
-  const [stickies, setStickies] = useState([]);
   const imageRef = useRef(null);
 
   // Dialogs
@@ -76,31 +87,31 @@ export default function FileEditor() {
     if (vaultFile && mode === "loading") openFile(vaultFile.file_url, vaultFile);
   }, [vaultFile, mode]);
 
-  // For documents, init the overlay canvas once iframe is mounted
+  // Init overlay canvas for documents
   useEffect(() => {
     if (fileKind === "document" && overlayCanvasRef.current) {
       const canvas = overlayCanvasRef.current;
       const context = canvas.getContext("2d");
       setCtx(context);
-      saveToHistoryWith(context, canvas);
+      const data = context.getImageData(0, 0, canvas.width, canvas.height);
+      setHistory([data]);
+      setHistoryIndex(0);
     }
   }, [fileKind]);
 
-  const saveToHistoryWith = useCallback((context, canvas) => {
+  const activeCanvas = useCallback(() =>
+    fileKind === "image" ? canvasRef.current : overlayCanvasRef.current,
+  [fileKind]);
+
+  const pushHistory = useCallback((context, canvas) => {
     const data = context.getImageData(0, 0, canvas.width, canvas.height);
     setHistory((prev) => {
-      const newH = prev.slice(0, historyIndex + 1);
-      newH.push(data);
-      setHistoryIndex(newH.length - 1);
-      return newH;
+      const h = prev.slice(0, historyIndex + 1);
+      h.push(data);
+      setHistoryIndex(h.length - 1);
+      return h;
     });
   }, [historyIndex]);
-
-  const saveToHistory = useCallback(() => {
-    const canvas = fileKind === "image" ? canvasRef.current : overlayCanvasRef.current;
-    if (!ctx || !canvas) return;
-    saveToHistoryWith(ctx, canvas);
-  }, [ctx, fileKind, saveToHistoryWith]);
 
   const initCanvas = useCallback((img, fileMeta) => {
     const canvas = canvasRef.current;
@@ -125,13 +136,12 @@ export default function FileEditor() {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => { imageRef.current = img; initCanvas(img, fileMeta); };
-      img.onerror = () => { toast.error("Could not load image for editing."); setMode("select"); };
+      img.onerror = () => { toast.error("Could not load image."); setMode("select"); };
       img.src = url;
     } else {
       setDocUrl(url);
       setSourceFile(fileMeta);
       setFileKind("document");
-      setStickies([]);
       setMode("editing");
     }
   }, [initCanvas]);
@@ -139,24 +149,21 @@ export default function FileEditor() {
   const loadLocalFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const url = URL.createObjectURL(f);
-    openFile(url, { original_name: f.name, display_name: f.name.replace(/\.[^/.]+$/, ""), category: "general" });
+    openFile(URL.createObjectURL(f), { original_name: f.name, display_name: f.name.replace(/\.[^/.]+$/, ""), category: "general" });
   };
-
-  const activeCanvas = () => fileKind === "image" ? canvasRef.current : overlayCanvasRef.current;
 
   const undo = () => {
     if (!ctx || historyIndex <= 0) return;
-    const newIdx = historyIndex - 1;
-    ctx.putImageData(history[newIdx], 0, 0);
-    setHistoryIndex(newIdx);
+    const ni = historyIndex - 1;
+    ctx.putImageData(history[ni], 0, 0);
+    setHistoryIndex(ni);
   };
 
   const redo = () => {
     if (!ctx || historyIndex >= history.length - 1) return;
-    const newIdx = historyIndex + 1;
-    ctx.putImageData(history[newIdx], 0, 0);
-    setHistoryIndex(newIdx);
+    const ni = historyIndex + 1;
+    ctx.putImageData(history[ni], 0, 0);
+    setHistoryIndex(ni);
   };
 
   const clearCanvas = () => {
@@ -164,8 +171,7 @@ export default function FileEditor() {
     if (!ctx || !canvas) return;
     if (fileKind === "image" && imageRef.current) ctx.drawImage(imageRef.current, 0, 0);
     else ctx.clearRect(0, 0, canvas.width, canvas.height);
-    saveToHistoryWith(ctx, canvas);
-    setStickies([]);
+    pushHistory(ctx, canvas);
   };
 
   const getPos = (e, targetCanvas) => {
@@ -173,10 +179,12 @@ export default function FileEditor() {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    const touch = e.touches && e.touches.length > 0 ? e.touches[0] : (e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0] : null);
-    const clientX = touch ? touch.clientX : e.clientX;
-    const clientY = touch ? touch.clientY : e.clientY;
-    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    const touch = e.touches && e.touches.length > 0 ? e.touches[0] :
+      (e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0] : null);
+    return {
+      x: ((touch ? touch.clientX : e.clientX) - rect.left) * scaleX,
+      y: ((touch ? touch.clientY : e.clientY) - rect.top) * scaleY,
+    };
   };
 
   const onMouseDown = (e) => {
@@ -184,18 +192,18 @@ export default function FileEditor() {
     const pos = getPos(e);
     setDrawing(true);
     setStartPos(pos);
-    if (tool === "text") { setTextPos(pos); return; }
-    if (tool === "sticky") { 
+    if (tool === "sign") { setShowSignatureDialog(true); setDrawing(false); return; }
+    if (tool === "text") { setTextPos(pos); setDrawing(false); return; }
+    if (tool === "sticky") {
       if (stickyText.trim()) {
-        setStickies((prev) => [...prev, { x: pos.x, y: pos.y, text: stickyText }]);
-        // Draw on canvas
         ctx.fillStyle = "#fef08a";
-        ctx.fillRect(pos.x, pos.y, 140, 60);
+        ctx.fillRect(pos.x, pos.y, 160, 64);
         ctx.fillStyle = "#000";
         ctx.font = "13px Inter, sans-serif";
-        ctx.fillText(stickyText.slice(0, 25), pos.x + 6, pos.y + 22);
-        saveToHistoryWith(ctx, activeCanvas());
+        ctx.fillText(stickyText.slice(0, 28), pos.x + 6, pos.y + 22);
+        pushHistory(ctx, activeCanvas());
       }
+      setDrawing(false);
       return;
     }
     ctx.beginPath();
@@ -207,20 +215,12 @@ export default function FileEditor() {
     const pos = getPos(e);
     if (tool === "pen" || tool === "eraser") {
       ctx.globalCompositeOperation = tool === "eraser" ? "destination-out" : "source-over";
-      ctx.strokeStyle = color;
-      ctx.lineWidth = size;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
+      ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.lineTo(pos.x, pos.y); ctx.stroke();
     } else if (tool === "highlight") {
       ctx.globalCompositeOperation = "source-over";
-      ctx.strokeStyle = color + "88"; // semi-transparent
-      ctx.lineWidth = size * 4;
-      ctx.lineCap = "square";
-      ctx.lineJoin = "miter";
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
+      ctx.strokeStyle = color + "88"; ctx.lineWidth = size * 4; ctx.lineCap = "square";
+      ctx.lineTo(pos.x, pos.y); ctx.stroke();
     }
   };
 
@@ -233,8 +233,7 @@ export default function FileEditor() {
       ctx.strokeStyle = color; ctx.lineWidth = size;
       ctx.strokeRect(startPos.x, startPos.y, pos.x - startPos.x, pos.y - startPos.y);
     } else if (tool === "circle") {
-      const rx = Math.abs(pos.x - startPos.x) / 2;
-      const ry = Math.abs(pos.y - startPos.y) / 2;
+      const rx = Math.abs(pos.x - startPos.x) / 2, ry = Math.abs(pos.y - startPos.y) / 2;
       ctx.strokeStyle = color; ctx.lineWidth = size;
       ctx.beginPath();
       ctx.ellipse(startPos.x + (pos.x - startPos.x) / 2, startPos.y + (pos.y - startPos.y) / 2, rx, ry, 0, 0, 2 * Math.PI);
@@ -242,21 +241,8 @@ export default function FileEditor() {
     } else if (tool === "line") {
       ctx.strokeStyle = color; ctx.lineWidth = size;
       ctx.beginPath(); ctx.moveTo(startPos.x, startPos.y); ctx.lineTo(pos.x, pos.y); ctx.stroke();
-    } else if (tool === "arrow") {
-      const dx = pos.x - startPos.x;
-      const dy = pos.y - startPos.y;
-      const angle = Math.atan2(dy, dx);
-      const headLen = 14;
-      ctx.strokeStyle = color; ctx.lineWidth = size;
-      ctx.beginPath(); ctx.moveTo(startPos.x, startPos.y); ctx.lineTo(pos.x, pos.y); ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(pos.x, pos.y);
-      ctx.lineTo(pos.x - headLen * Math.cos(angle - Math.PI / 6), pos.y - headLen * Math.sin(angle - Math.PI / 6));
-      ctx.moveTo(pos.x, pos.y);
-      ctx.lineTo(pos.x - headLen * Math.cos(angle + Math.PI / 6), pos.y - headLen * Math.sin(angle + Math.PI / 6));
-      ctx.stroke();
     }
-    saveToHistoryWith(ctx, activeCanvas());
+    pushHistory(ctx, activeCanvas());
   };
 
   const addText = () => {
@@ -264,7 +250,7 @@ export default function FileEditor() {
     ctx.fillStyle = color;
     ctx.font = `${size * 4 + 12}px Inter, sans-serif`;
     ctx.fillText(textInput, textPos.x, textPos.y);
-    saveToHistoryWith(ctx, activeCanvas());
+    pushHistory(ctx, activeCanvas());
     setTextInput(""); setTextPos(null);
   };
 
@@ -275,34 +261,17 @@ export default function FileEditor() {
     img.onload = () => {
       const sigW = Math.min(canvas.width * 0.35, 280);
       const sigH = (img.height / img.width) * sigW;
-      const x = canvas.width - sigW - 24;
-      const y = canvas.height - sigH - 24;
-      ctx.drawImage(img, x, y, sigW, sigH);
-      saveToHistoryWith(ctx, canvas);
+      ctx.drawImage(img, canvas.width - sigW - 24, canvas.height - sigH - 24, sigW, sigH);
+      pushHistory(ctx, canvas);
     };
     img.src = dataUrl;
-  };
-
-  const rotateImage = () => {
-    if (!ctx || !canvasRef.current || fileKind !== "image") return;
-    const canvas = canvasRef.current;
-    const tmp = document.createElement("canvas");
-    tmp.width = canvas.height; tmp.height = canvas.width;
-    const tCtx = tmp.getContext("2d");
-    tCtx.translate(tmp.width / 2, tmp.height / 2);
-    tCtx.rotate(Math.PI / 2);
-    tCtx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
-    canvas.width = tmp.width; canvas.height = tmp.height;
-    ctx.drawImage(tmp, 0, 0);
-    saveToHistoryWith(ctx, canvas);
   };
 
   const downloadEdited = () => {
     const canvas = activeCanvas();
     if (!canvas) return;
     const link = document.createElement("a");
-    const name = sourceFile?.display_name || sourceFile?.original_name || "edited-file";
-    link.download = name + ".png";
+    link.download = (sourceFile?.display_name || "edited-file") + ".png";
     link.href = canvas.toDataURL("image/png");
     link.click();
   };
@@ -310,22 +279,18 @@ export default function FileEditor() {
   const handleSaveToVault = async ({ saveName, saveCategory, saveAccess }) => {
     const canvas = activeCanvas();
     if (!canvas) return;
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
     const file = new File([blob], `${saveName || "edited-file"}.png`, { type: "image/png" });
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
     await base44.entities.File.create({
       original_name: file.name,
       display_name: saveName || file.name,
       standardized_name: generateStandardizedName(file.name, saveCategory, saveAccess),
-      file_url,
-      file_type: "png",
-      file_size: file.size,
-      category: saveCategory,
-      access_level: saveAccess,
-      owner_email: user?.email,
-      owner_name: user?.full_name,
-      description: `Edited version${sourceFile ? " of: " + (sourceFile.display_name || sourceFile.original_name) : ""}`,
-      keywords: ["edited"],
+      file_url, file_type: "png", file_size: file.size,
+      category: saveCategory, access_level: saveAccess,
+      owner_email: user?.email, owner_name: user?.full_name,
+      description: `Annotated version${sourceFile ? " of: " + (sourceFile.display_name || sourceFile.original_name) : ""}`,
+      keywords: ["edited", "annotated"],
     });
     queryClient.invalidateQueries({ queryKey: ["files"] });
     toast.success("Saved to vault!");
@@ -340,32 +305,6 @@ export default function FileEditor() {
     );
   }
 
-  const toolGroups = [
-    {
-      label: "Draw",
-      tools: [
-        { id: "pen", icon: Pen, label: "Freehand Draw" },
-        { id: "eraser", icon: Eraser, label: "Eraser" },
-        { id: "highlight", icon: Highlighter, label: "Highlight" },
-      ],
-    },
-    {
-      label: "Shapes",
-      tools: [
-        { id: "line", icon: Minus, label: "Line" },
-        { id: "rect", icon: Square, label: "Rectangle" },
-        { id: "circle", icon: Circle, label: "Ellipse" },
-      ],
-    },
-    {
-      label: "Insert",
-      tools: [
-        { id: "text", icon: Type, label: "Text" },
-        { id: "sticky", icon: StickyNote, label: "Sticky Note" },
-      ],
-    },
-  ];
-
   const isEditing = mode === "editing";
 
   return (
@@ -377,7 +316,7 @@ export default function FileEditor() {
         </Button>
         <span className="font-semibold text-sm">File Editor</span>
         {sourceFile && <span className="text-xs text-muted-foreground truncate hidden sm:block">— {sourceFile.display_name || sourceFile.original_name}</span>}
-        <div className="ml-auto flex items-center gap-2 flex-wrap">
+        <div className="ml-auto flex items-center gap-2">
           {isEditing && sourceFile?.id && (
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowShareDialog(true)}>
               <Share2 className="h-3.5 w-3.5" /> Share
@@ -385,9 +324,6 @@ export default function FileEditor() {
           )}
           {isEditing && (
             <>
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowSignatureDialog(true)}>
-                <PenLine className="h-3.5 w-3.5" /> Sign
-              </Button>
               <Button variant="outline" size="sm" className="gap-1.5 hidden sm:flex" onClick={downloadEdited}>
                 <Download className="h-3.5 w-3.5" /> Download
               </Button>
@@ -401,21 +337,16 @@ export default function FileEditor() {
               <ExternalLink className="h-3.5 w-3.5" /> Open Original
             </Button>
           )}
-          {isEditing && fileKind === "image" && (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={rotateImage}>
-              <RotateCw className="h-3.5 w-3.5" /> Rotate
-            </Button>
-          )}
         </div>
       </div>
 
-      {/* Select source */}
+      {/* File select */}
       {mode === "select" && (
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="max-w-lg w-full space-y-6">
             <div className="text-center">
               <h2 className="text-xl font-bold mb-1">Open a File to Edit</h2>
-              <p className="text-sm text-muted-foreground">Choose from your vault or upload from your device. All file types support annotations, drawing, text, highlights, sticky notes and signatures.</p>
+              <p className="text-sm text-muted-foreground">All file types support annotations, drawing, text, highlights, watermarks, headers, footers and signatures.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="cursor-pointer">
@@ -430,163 +361,190 @@ export default function FileEditor() {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">From Vault</p>
                 {allFiles.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-4">No files in vault</p>
-                ) : (
-                  allFiles.map((f) => {
-                    const ext = getFileExtension(f.original_name);
-                    const isImg = IMAGE_EXTS.includes(ext);
-                    return (
-                      <button key={f.id} onClick={() => openFile(f.file_url, f)}
-                        className="w-full text-left flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors">
-                        {isImg ? <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" /> : <FileText className="h-4 w-4 text-muted-foreground shrink-0" />}
-                        <span className="text-sm truncate">{f.display_name || f.original_name}</span>
-                        <span className="text-xs text-muted-foreground uppercase ml-auto">{ext}</span>
-                      </button>
-                    );
-                  })
-                )}
+                ) : allFiles.map((f) => {
+                  const ext = getFileExtension(f.original_name);
+                  return (
+                    <button key={f.id} onClick={() => openFile(f.file_url, f)}
+                      className="w-full text-left flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors">
+                      {IMAGE_EXTS.includes(ext) ? <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" /> : <FileText className="h-4 w-4 text-muted-foreground shrink-0" />}
+                      <span className="text-sm truncate">{f.display_name || f.original_name}</span>
+                      <span className="text-xs text-muted-foreground uppercase ml-auto">{ext}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Editor — shared layout for both image and document */}
+      {/* Editor */}
       {isEditing && (
         <div className="flex flex-1 overflow-hidden">
-          {/* Left Toolbar */}
+
+          {/* Left toolbar */}
           <div className="w-14 border-r bg-card flex flex-col items-center py-3 gap-1 shrink-0 overflow-y-auto">
-            {toolGroups.map((group, gi) => (
-              <React.Fragment key={group.label}>
-                {gi > 0 && <div className="h-px w-8 bg-border my-1" />}
-                {group.tools.map(({ id, icon: Icon, label }) => (
-                  <button key={id} title={label} onClick={() => setTool(id)}
-                    className={`h-9 w-9 rounded-lg flex items-center justify-center transition-colors ${tool === id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
-                    <Icon className="h-4 w-4" />
-                  </button>
-                ))}
+            {DRAW_TOOLS.map(({ id, icon: Icon, label }, i) => (
+              <React.Fragment key={id}>
+                {(i === 3 || i === 6 || i === 8) && <div className="h-px w-8 bg-border my-1" />}
+                <button title={label} onClick={() => id === "sign" ? setShowSignatureDialog(true) : setTool(id)}
+                  className={`h-9 w-9 rounded-lg flex items-center justify-center transition-colors
+                    ${tool === id && id !== "sign" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}
+                    ${id === "sign" ? "text-primary" : ""}`}>
+                  <Icon className="h-4 w-4" />
+                </button>
               </React.Fragment>
             ))}
             <div className="h-px w-8 bg-border my-1" />
-            <button title="Sign Document" onClick={() => setShowSignatureDialog(true)}
-              className="h-9 w-9 rounded-lg flex items-center justify-center hover:bg-muted text-primary">
-              <PenLine className="h-4 w-4" />
-            </button>
-            <div className="h-px w-8 bg-border my-1" />
             <button title="Undo" onClick={undo} className="h-9 w-9 rounded-lg flex items-center justify-center hover:bg-muted"><Undo className="h-4 w-4" /></button>
             <button title="Redo" onClick={redo} className="h-9 w-9 rounded-lg flex items-center justify-center hover:bg-muted"><Redo className="h-4 w-4" /></button>
-            <button title="Clear Annotations" onClick={clearCanvas} className="h-9 w-9 rounded-lg flex items-center justify-center hover:bg-muted text-destructive"><Trash2 className="h-4 w-4" /></button>
+            <button title="Clear" onClick={clearCanvas} className="h-9 w-9 rounded-lg flex items-center justify-center hover:bg-muted text-destructive"><Trash2 className="h-4 w-4" /></button>
           </div>
 
-          {/* Canvas / Viewer Area */}
-          <div className="flex-1 overflow-auto bg-muted/20 flex items-start justify-center p-4 relative">
+          {/* Center canvas/viewer */}
+          <div className="flex-1 overflow-auto bg-muted/30">
             {fileKind === "image" && (
-              <div style={{ transform: `scale(${zoom})`, transformOrigin: "top center", transition: "transform 0.15s" }}>
-                <canvas ref={canvasRef}
-                  className="shadow-lg rounded cursor-crosshair max-w-full"
-                  style={{ touchAction: "none" }}
-                  onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
-                  onTouchStart={onMouseDown} onTouchMove={onMouseMove} onTouchEnd={onMouseUp} />
+              <div className="min-h-full flex items-start justify-center p-6">
+                <div style={{ transform: `scale(${zoom})`, transformOrigin: "top center", transition: "transform 0.15s" }}>
+                  <canvas ref={canvasRef}
+                    className="shadow-xl rounded cursor-crosshair block"
+                    style={{ touchAction: "none" }}
+                    onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+                    onTouchStart={onMouseDown} onTouchMove={onMouseMove} onTouchEnd={onMouseUp} />
+                </div>
               </div>
             )}
+
             {fileKind === "document" && (
-              <div className="relative w-full h-full min-h-[600px]">
-                {/* Document viewer */}
+              <div className="relative w-full" style={{ minHeight: "calc(100vh - 52px)" }}>
+                {/* Full-height document iframe */}
                 <iframe
                   src={`https://docs.google.com/viewer?url=${encodeURIComponent(docUrl)}&embedded=true`}
-                  className="absolute inset-0 w-full h-full border-0 rounded-lg"
+                  className="w-full border-0"
+                  style={{ height: "calc(100vh - 52px)", display: "block" }}
                   title="Document Viewer"
                 />
-                {/* Annotation canvas overlay */}
+                {/* Transparent annotation canvas overlay */}
                 <canvas
                   ref={overlayCanvasRef}
-                  width={1200}
-                  height={1600}
-                  className="absolute inset-0 w-full h-full rounded-lg"
-                  style={{ touchAction: "none", cursor: tool === "text" ? "text" : "crosshair", pointerEvents: "auto" }}
+                  width={1240}
+                  height={1754}
+                  className="absolute top-0 left-0 w-full"
+                  style={{
+                    height: "calc(100vh - 52px)",
+                    touchAction: "none",
+                    cursor: tool === "text" ? "text" : "crosshair",
+                    pointerEvents: "auto",
+                  }}
                   onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
                   onTouchStart={onMouseDown} onTouchMove={onMouseMove} onTouchEnd={onMouseUp}
                 />
-                <div className="absolute top-2 left-2 z-10">
-                  <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-800 border-yellow-300">
-                    Annotation layer active — draw, type and sign on top of your document
-                  </Badge>
+                <div className="absolute top-3 left-3 z-10 bg-yellow-50 border border-yellow-300 text-yellow-800 text-xs px-2 py-1 rounded-full shadow-sm">
+                  Annotation layer — draw on top of document
                 </div>
               </div>
             )}
           </div>
 
           {/* Right panel */}
-          <div className="w-52 border-l bg-card p-3 space-y-4 shrink-0 overflow-y-auto">
-            {/* Color */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Color</p>
-              <div className="flex flex-wrap gap-1.5">
-                {(tool === "highlight" ? HIGHLIGHT_COLORS : COLORS).map((c) => (
-                  <button key={c} onClick={() => setColor(c)}
-                    className={`h-6 w-6 rounded-full border-2 transition-transform ${color === c ? "scale-125 border-primary" : "border-border"}`}
-                    style={{ background: c }} />
-                ))}
-                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-6 w-6 rounded cursor-pointer border border-border" />
-              </div>
+          <div className="w-56 border-l bg-card shrink-0 flex flex-col overflow-hidden">
+            <div className="flex border-b shrink-0">
+              <button onClick={() => setRightPanel("tools")}
+                className={`flex-1 py-2 text-xs font-medium transition-colors ${rightPanel === "tools" ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"}`}>
+                Tools
+              </button>
+              <button onClick={() => setRightPanel("overlays")}
+                className={`flex-1 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1 ${rightPanel === "overlays" ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"}`}>
+                <LayoutTemplate className="h-3 w-3" /> Page
+              </button>
             </div>
 
-            {/* Size */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                {tool === "highlight" ? "Highlight Width" : "Brush Size"}
-              </p>
-              <div className="flex gap-1.5 flex-wrap">
-                {SIZES.map((s) => (
-                  <button key={s} onClick={() => setSize(s)}
-                    className={`h-7 w-7 rounded-lg border flex items-center justify-center text-xs font-medium transition-colors ${size === s ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}>
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Zoom (images only) */}
-            {fileKind === "image" && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Zoom</p>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}><ZoomOut className="h-3.5 w-3.5" /></Button>
-                  <span className="text-xs flex-1 text-center">{Math.round(zoom * 100)}%</span>
-                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setZoom((z) => Math.min(4, z + 0.25))}><ZoomIn className="h-3.5 w-3.5" /></Button>
+            {rightPanel === "tools" && (
+              <div className="flex-1 overflow-y-auto p-3 space-y-4">
+                {/* Color */}
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Color</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(tool === "highlight" ? HIGHLIGHT_COLORS : COLORS).map((c) => (
+                      <button key={c} onClick={() => setColor(c)}
+                        className={`h-6 w-6 rounded-full border-2 transition-transform ${color === c ? "scale-125 border-primary" : "border-border"}`}
+                        style={{ background: c }} />
+                    ))}
+                    <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-6 w-6 rounded cursor-pointer border border-border" />
+                  </div>
                 </div>
+
+                {/* Size */}
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    {tool === "highlight" ? "Highlight Width" : "Brush Size"}
+                  </p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {SIZES.map((s) => (
+                      <button key={s} onClick={() => setSize(s)}
+                        className={`h-7 w-7 rounded-lg border flex items-center justify-center text-xs font-medium transition-colors ${size === s ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Zoom (images) */}
+                {fileKind === "image" && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Zoom</p>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}><ZoomOut className="h-3.5 w-3.5" /></Button>
+                      <span className="text-xs flex-1 text-center">{Math.round(zoom * 100)}%</span>
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setZoom((z) => Math.min(4, z + 0.25))}><ZoomIn className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Text tool */}
+                {tool === "text" && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Add Text</p>
+                    <p className="text-xs text-muted-foreground">Click canvas to set position, then place.</p>
+                    <Input value={textInput} onChange={(e) => setTextInput(e.target.value)} placeholder="Your text..." className="text-sm h-8" />
+                    <Button size="sm" className="w-full" onClick={addText} disabled={!textInput || !textPos}>Place Text</Button>
+                    {textPos && <p className="text-xs text-green-600">Position set ✓</p>}
+                  </div>
+                )}
+
+                {/* Sticky note */}
+                {tool === "sticky" && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sticky Note</p>
+                    <p className="text-xs text-muted-foreground">Type your note, then click canvas to place.</p>
+                    <Input value={stickyText} onChange={(e) => setStickyText(e.target.value)} placeholder="Note text..." className="text-sm h-8" />
+                  </div>
+                )}
+
+                {/* Tool hint */}
+                {!["text", "sticky"].includes(tool) && (
+                  <div className="bg-muted/50 rounded-lg p-2.5">
+                    <p className="text-xs text-muted-foreground">
+                      {tool === "pen" && "Draw freely anywhere on the document"}
+                      {tool === "eraser" && "Erase annotations you've added"}
+                      {tool === "highlight" && "Drag to highlight text or areas"}
+                      {tool === "line" && "Click and drag to draw a straight line"}
+                      {tool === "rect" && "Click and drag to draw a rectangle"}
+                      {tool === "circle" && "Click and drag to draw an ellipse"}
+                      {tool === "sign" && "Click Sign to open the signature pad"}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Text tool */}
-            {tool === "text" && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Add Text</p>
-                <p className="text-xs text-muted-foreground">Click on the canvas, then type below and place.</p>
-                <Input value={textInput} onChange={(e) => setTextInput(e.target.value)} placeholder="Your text..." className="text-sm" />
-                <Button size="sm" className="w-full" onClick={addText} disabled={!textInput || !textPos}>Place Text</Button>
-              </div>
-            )}
-
-            {/* Sticky note tool */}
-            {tool === "sticky" && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sticky Note</p>
-                <p className="text-xs text-muted-foreground">Type your note, then click where to place it.</p>
-                <Input value={stickyText} onChange={(e) => setStickyText(e.target.value)} placeholder="Note text..." className="text-sm" />
-              </div>
-            )}
-
-            {/* Tool hint */}
-            {!["text", "sticky"].includes(tool) && (
-              <div className="bg-muted/50 rounded-lg p-2.5">
-                <p className="text-xs text-muted-foreground">
-                  {tool === "pen" && "Draw freely on the document"}
-                  {tool === "eraser" && "Erase annotations you've made"}
-                  {tool === "highlight" && "Drag to highlight text or areas"}
-                  {tool === "line" && "Click and drag to draw a straight line"}
-                  {tool === "rect" && "Click and drag to draw a rectangle"}
-                  {tool === "circle" && "Click and drag to draw an ellipse"}
-                </p>
+            {rightPanel === "overlays" && (
+              <div className="flex-1 overflow-hidden">
+                <DocumentOverlayPanel
+                  ctx={ctx}
+                  canvas={activeCanvas()}
+                  onApply={() => ctx && activeCanvas() && pushHistory(ctx, activeCanvas())}
+                />
               </div>
             )}
           </div>
@@ -602,7 +560,6 @@ export default function FileEditor() {
           defaultCategory={sourceFile?.category || "general"}
         />
       )}
-
       {showShareDialog && sourceFile?.id && (
         <ShareDialog
           file={sourceFile}
@@ -610,7 +567,6 @@ export default function FileEditor() {
           onSave={() => queryClient.invalidateQueries({ queryKey: ["files"] })}
         />
       )}
-
       <SignatureDialog
         open={showSignatureDialog}
         onOpenChange={setShowSignatureDialog}
