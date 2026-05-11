@@ -109,7 +109,7 @@ export default function SignatureDialog({ open, onOpenChange, onApply }) {
         d[i + 3] = Math.min(255, d[i + 3] * (0.7 + Math.random() * 0.3));
       }
     }
-    ctx.putImageData(imageData, out);
+    ctx.putImageData(imageData, 0, 0);
     // Slight blur for ink spread
     ctx.filter = "blur(0.4px)";
     ctx.drawImage(out, 0, 0);
