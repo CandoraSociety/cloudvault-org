@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,19 +7,30 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Calendar, User, Tag } from "lucide-react";
+import { Download, FileText, Calendar, User, Tag, Eye, EyeOff } from "lucide-react";
 import { getFileExtension, getFileTypeStyle, formatFileSize } from "@/lib/fileHelpers";
 import { format } from "date-fns";
 
+const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
+const PREVIEWABLE_EXTS = ["pdf", ...IMAGE_EXTS, "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv"];
+
 export default function FileSummaryDialog({ file, open, onOpenChange }) {
+  const [showPreview, setShowPreview] = useState(false);
   if (!file) return null;
 
   const ext = getFileExtension(file.original_name);
+  const canPreview = PREVIEWABLE_EXTS.includes(ext);
+  const isImage = IMAGE_EXTS.includes(ext);
+  const isPdf = ext === "pdf";
+
+  const previewUrl = isImage || isPdf
+    ? file.file_url
+    : `https://docs.google.com/viewer?url=${encodeURIComponent(file.file_url)}&embedded=true`;
   const style = getFileTypeStyle(ext);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={open} onOpenChange={(v) => { setShowPreview(false); onOpenChange(v); }}>
+      <DialogContent className={showPreview ? "max-w-4xl" : "max-w-lg"}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <div className={`h-10 w-10 rounded-xl ${style.bg} flex items-center justify-center`}>
@@ -80,9 +91,31 @@ export default function FileSummaryDialog({ file, open, onOpenChange }) {
             </div>
           )}
 
-          <Button className="w-full gap-2" onClick={() => window.open(file.file_url, "_blank")}>
-            <Download className="h-4 w-4" /> Download File
-          </Button>
+          {showPreview && (
+            <div className="rounded-lg overflow-hidden border bg-muted/30" style={{ height: "60vh" }}>
+              {isImage ? (
+                <img src={previewUrl} alt={file.display_name} className="w-full h-full object-contain" />
+              ) : (
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-full"
+                  title={file.display_name}
+                  sandbox="allow-scripts allow-same-origin allow-popups"
+                />
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            {canPreview && (
+              <Button variant="outline" className="flex-1 gap-2" onClick={() => setShowPreview(!showPreview)}>
+                {showPreview ? <><EyeOff className="h-4 w-4" /> Hide Preview</> : <><Eye className="h-4 w-4" /> Preview File</>}
+              </Button>
+            )}
+            <Button className={canPreview ? "flex-1 gap-2" : "w-full gap-2"} onClick={() => window.open(file.file_url, "_blank")}>
+              <Download className="h-4 w-4" /> Download File
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
