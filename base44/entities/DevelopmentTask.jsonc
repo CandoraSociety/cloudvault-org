@@ -1,0 +1,72 @@
+{
+  "name": "DevelopmentTask",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Task name (e.g. 'Authorize OneDrive')"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of what needs to be done"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "blocked",
+        "completed"
+      ],
+      "default": "pending",
+      "description": "Current task status"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "default": "medium",
+      "description": "Task priority level"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "integration",
+        "feature",
+        "bug_fix",
+        "refactor",
+        "documentation"
+      ],
+      "description": "Type of development task"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date",
+      "description": "When this task needs to be completed"
+    },
+    "assigned_to": {
+      "type": "string",
+      "description": "Email of person responsible"
+    },
+    "blocked_by": {
+      "type": "string",
+      "description": "Description of what's blocking this task (if any)"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes or context"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Email of task creator"
+    }
+  },
+  "required": [
+    "title",
+    "status",
+    "owner_email"
+  ]
+}

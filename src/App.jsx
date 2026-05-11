@@ -18,6 +18,7 @@ import Workspace from './pages/Workspace';
 import BulkUpload from './pages/BulkUpload';
 import Notes from './pages/Notes';
 import FloatingNoteButton from './components/notes/FloatingNoteButton';
+import DevTasks from './pages/DevTasks';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -51,6 +52,7 @@ const AuthenticatedApp = () => {
           <Route path="/workspace" element={<Workspace />} />
           <Route path="/notes" element={<Notes />} />
           <Route path="/bulk-upload" element={<BulkUpload />} />
+          <Route path="/dev-tasks" element={<DevTasks />} />
         </Route>
         <Route path="/view" element={<FileViewer />} />
         <Route path="/edit" element={<FileEditor />} />
