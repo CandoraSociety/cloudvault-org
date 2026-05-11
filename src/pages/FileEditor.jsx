@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, Upload, Download, Save, Pen, Eraser, Type, Square,
   Circle, Minus, Undo, Redo, Trash2, Loader2, ImageIcon, ZoomIn, ZoomOut,
-  RotateCw, Share2, X, FileText, ExternalLink, Palette
+  RotateCw, Share2, X, FileText, ExternalLink, Palette, PenLine
 } from "lucide-react";
+import SignatureDialog from "@/components/files/SignatureDialog";
 
 const CANVA_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "pdf"];
 import { getFileExtension, CATEGORIES, ACCESS_LEVELS } from "@/lib/fileHelpers";
@@ -167,6 +168,7 @@ export default function FileEditor() {
   // Dialogs
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showSignatureDialog, setShowSignatureDialog] = useState(false);
 
   const { data: vaultFile, isLoading: vaultLoading } = useQuery({
     queryKey: ["file", fileId],
@@ -321,6 +323,22 @@ export default function FileEditor() {
     setTextInput(""); setTextPos(null);
   };
 
+  const applySignature = (dataUrl) => {
+    if (!ctx || !canvasRef.current) return;
+    const img = new Image();
+    img.onload = () => {
+      // Place signature at bottom-right with reasonable sizing
+      const canvas = canvasRef.current;
+      const sigW = Math.min(canvas.width * 0.35, 280);
+      const sigH = (img.height / img.width) * sigW;
+      const x = canvas.width - sigW - 24;
+      const y = canvas.height - sigH - 24;
+      ctx.drawImage(img, x, y, sigW, sigH);
+      saveToHistory(ctx, canvas);
+    };
+    img.src = dataUrl;
+  };
+
   const rotateImage = () => {
     if (!ctx || !canvasRef.current) return;
     const canvas = canvasRef.current;
@@ -393,6 +411,9 @@ export default function FileEditor() {
           )}
           {mode === "editing" && fileKind === "image" && (
             <>
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowSignatureDialog(true)}>
+                <PenLine className="h-3.5 w-3.5" /> Sign
+              </Button>
               <Button variant="outline" size="sm" className="gap-1.5 hidden sm:flex" onClick={downloadEdited}>
                 <Download className="h-3.5 w-3.5" /> Download
               </Button>
@@ -473,6 +494,11 @@ export default function FileEditor() {
                 <Icon className="h-4 w-4" />
               </button>
             ))}
+            <div className="h-px w-8 bg-border my-1" />
+            <button title="Sign Document" onClick={() => setShowSignatureDialog(true)}
+              className="h-9 w-9 rounded-lg flex items-center justify-center hover:bg-muted text-primary">
+              <PenLine className="h-4 w-4" />
+            </button>
             <div className="h-px w-8 bg-border my-1" />
             <button title="Undo" onClick={undo} className="h-9 w-9 rounded-lg flex items-center justify-center hover:bg-muted"><Undo className="h-4 w-4" /></button>
             <button title="Redo" onClick={redo} className="h-9 w-9 rounded-lg flex items-center justify-center hover:bg-muted"><Redo className="h-4 w-4" /></button>
@@ -562,6 +588,12 @@ export default function FileEditor() {
           onSave={() => queryClient.invalidateQueries({ queryKey: ["files"] })}
         />
       )}
+
+      <SignatureDialog
+        open={showSignatureDialog}
+        onOpenChange={setShowSignatureDialog}
+        onApply={applySignature}
+      />
     </div>
   );
 }

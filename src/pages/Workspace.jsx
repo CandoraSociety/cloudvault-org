@@ -65,22 +65,27 @@ export default function Workspace() {
     }
   };
 
-  const handlePinFromVault = async (vaultFile, groupName) => {
-    const exists = items.find((i) => i.file_id === vaultFile.id && i.workspace_group === groupName);
-    if (exists) { toast.info("Already in this group"); return; }
-    await base44.entities.WorkspaceItem.create({
-      owner_email: user.email,
-      workspace_group: groupName || null,
-      file_id: vaultFile.id,
-      file_url: vaultFile.file_url,
-      original_name: vaultFile.display_name || vaultFile.original_name,
-      file_type: getFileExtension(vaultFile.original_name),
-      file_size: vaultFile.file_size,
-      pinned_from_vault: true,
-      label: vaultFile.display_name || vaultFile.original_name,
-    });
+  const handlePinFromVault = async (vaultFiles, groupName) => {
+    const fileArray = Array.isArray(vaultFiles) ? vaultFiles : [vaultFiles];
+    const newFiles = fileArray.filter(
+      (vf) => !items.find((i) => i.file_id === vf.id && i.workspace_group === groupName)
+    );
+    if (newFiles.length === 0) { toast.info("Already in this group"); return; }
+    await Promise.all(newFiles.map((vaultFile) =>
+      base44.entities.WorkspaceItem.create({
+        owner_email: user.email,
+        workspace_group: groupName || null,
+        file_id: vaultFile.id,
+        file_url: vaultFile.file_url,
+        original_name: vaultFile.display_name || vaultFile.original_name,
+        file_type: getFileExtension(vaultFile.original_name),
+        file_size: vaultFile.file_size,
+        pinned_from_vault: true,
+        label: vaultFile.display_name || vaultFile.original_name,
+      })
+    ));
     queryClient.invalidateQueries({ queryKey: ["workspace", user?.email] });
-    toast.success("File pinned to group");
+    toast.success(`${newFiles.length} file${newFiles.length !== 1 ? "s" : ""} pinned to group`);
     setShowPinDialog(false);
   };
 
