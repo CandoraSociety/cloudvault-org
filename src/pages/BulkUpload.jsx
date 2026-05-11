@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   Upload, FolderOpen, Cpu, GitMerge, ChevronRight, ChevronLeft,
-  CheckCircle2, Loader2, AlertTriangle, RefreshCw, Inbox
+  CheckCircle2, Loader2, AlertTriangle, RefreshCw, Inbox, Camera
 } from "lucide-react";
 import { toast } from "sonner";
-import { ACCESS_LEVELS, CATEGORIES, getFileExtension, generateStandardizedName } from "@/lib/fileHelpers";
+import { ACCESS_LEVELS, CATEGORIES, PHOTO_EXTS, getFileExtension, generateStandardizedName } from "@/lib/fileHelpers";
 import BulkFileRow from "@/components/bulk/BulkFileRow";
+import PhotoSorterDialog from "@/components/bulk/PhotoSorterDialog";
 
 // Which access levels a given role can upload to
 const ALLOWED_ACCESS = {
@@ -61,6 +62,7 @@ export default function BulkUpload() {
   const [analyzing, setAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [doneCount, setDoneCount] = useState(0);
+  const [showPhotoSorter, setShowPhotoSorter] = useState(false);
   const fileInputRef = useRef();
 
   const role = user?.role || "user";
@@ -127,34 +129,48 @@ Respond with ONLY the category slug, nothing else. If you cannot determine the c
     setItems((prev) => prev.filter((it) => it.id !== id));
   };
 
+  // ── Check for unsorted photos and show sorter ────────────────────────────────
+  const photoItems = items.filter((it) => PHOTO_EXTS.includes(getFileExtension(it.file.name)));
+  const hasUnsortedPhotos = photoItems.some((it) => it.category === "to_be_sorted" || !it.category);
+
+  const handleSubmitClick = () => {
+    if (hasUnsortedPhotos) {
+      setShowPhotoSorter(true);
+    } else {
+      handleUpload();
+    }
+  };
+
+  const handlePhotoSorterDone = (updates) => {
+    setShowPhotoSorter(false);
+    setItems((prev) => prev.map((it) => {
+      const update = updates.find((u) => u.id === it.id);
+      return update ? { ...it, category: update.category } : it;
+    }));
+    // Upload after categories applied
+    setTimeout(() => handleUpload(), 50);
+  };
+
   // ── Step 4/5: upload ─────────────────────────────────────────────────────────
   const handleUpload = async () => {
     setStep(4);
-    const total = items.length;
+    const snapshot = items; // capture current state
+    const total = snapshot.length;
     let done = 0;
 
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
+    for (let i = 0; i < snapshot.length; i++) {
+      const item = snapshot[i];
       setItems((prev) => prev.map((it) => it.id === item.id ? { ...it, status: "uploading" } : it));
 
       try {
         const { file_url } = await base44.integrations.Core.UploadFile({ file: item.file });
-
-        // Quick summary via LLM (non-blocking, best-effort)
-        let summary = "";
-        try {
-          summary = await base44.integrations.Core.InvokeLLM({
-            prompt: `Give a 1-2 sentence summary for a file named "${item.file.name}" in the "${item.category}" category.`,
-          });
-        } catch (_) {}
-
         const standardizedName = generateStandardizedName(item.file.name, item.category, accessLevel);
 
         await base44.entities.File.create({
           original_name: item.file.name,
           standardized_name: standardizedName,
           display_name: item.file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
-          summary: typeof summary === "string" ? summary : "",
+          summary: "",
           keywords: [],
           file_url,
           file_type: getFileExtension(item.file.name),
@@ -338,13 +354,20 @@ Respond with ONLY the category slug, nothing else. If you cannot determine the c
             ))}
           </div>
 
+          {hasUnsortedPhotos && (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+              <Camera className="h-3.5 w-3.5 shrink-0" />
+              {photoItems.filter(it => it.category === "to_be_sorted" || !it.category).length} photo{photoItems.filter(it => it.category === "to_be_sorted" || !it.category).length !== 1 ? "s" : ""} need sorting — you'll be prompted to categorize them.
+            </div>
+          )}
+
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => setStep(2)} className="gap-1.5">
               <ChevronLeft className="h-4 w-4" /> Back
             </Button>
             <Button
               className="flex-1 h-11 gap-2"
-              onClick={handleUpload}
+              onClick={handleSubmitClick}
               disabled={analyzing || items.length === 0}
             >
               <Upload className="h-4 w-4" /> Import {items.length} File{items.length !== 1 ? "s" : ""}
@@ -370,6 +393,15 @@ Respond with ONLY the category slug, nothing else. If you cannot determine the c
             ))}
           </div>
         </div>
+      )}
+
+      {/* Photo sorter dialog */}
+      {showPhotoSorter && (
+        <PhotoSorterDialog
+          photos={photoItems.filter((it) => it.category === "to_be_sorted" || !it.category)}
+          onDone={handlePhotoSorterDone}
+          onCancel={() => setShowPhotoSorter(false)}
+        />
       )}
 
       {/* ── STEP 5: Done ── */}

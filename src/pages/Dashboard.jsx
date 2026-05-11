@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import StatCard from "@/components/dashboard/StatCard";
 import RecentFiles from "@/components/dashboard/RecentFiles";
 import CategoryBreakdown from "@/components/dashboard/CategoryBreakdown";
+import SortingTasksBanner from "@/components/dashboard/SortingTasksBanner";
 import { canAccessFile } from "@/lib/fileHelpers";
 
 export default function Dashboard() {
@@ -19,6 +20,7 @@ export default function Dashboard() {
   });
 
   const accessibleFiles = allFiles.filter((f) => canAccessFile(f, user));
+  const unsortedFiles = accessibleFiles.filter((f) => f.category === "to_be_sorted");
   const managerFiles = accessibleFiles.filter((f) => f.access_level === "manager");
   const universalFiles = accessibleFiles.filter((f) => f.access_level === "universal");
   const myFiles = accessibleFiles.filter((f) => f.access_level === "personal" && f.owner_email === user?.email);
@@ -35,6 +37,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
+      <SortingTasksBanner count={unsortedFiles.length} />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Welcome back, {user?.full_name?.split(" ")[0] || "User"}</h1>

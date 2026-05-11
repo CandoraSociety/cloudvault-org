@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, Image, CheckCircle2, AlertCircle, Loader2, X } from "lucide-react";
-import { getFileExtension, getFileTypeStyle, formatFileSize, CATEGORIES } from "@/lib/fileHelpers";
+import { getFileExtension, getFileTypeStyle, formatFileSize, CATEGORIES, PHOTO_CATEGORIES, PHOTO_EXTS } from "@/lib/fileHelpers";
 
 const STATUS_ICONS = {
   pending: null,
@@ -17,7 +17,8 @@ const STATUS_ICONS = {
 export default function BulkFileRow({ item, onCategoryChange, onRemove, showCategoryEdit }) {
   const ext = getFileExtension(item.file.name);
   const style = getFileTypeStyle(ext);
-  const isImage = ["png", "jpg", "jpeg", "gif", "webp"].includes(ext);
+  const isImage = PHOTO_EXTS.includes(ext);
+  const ALL_CATS = [...CATEGORIES, ...PHOTO_CATEGORIES];
 
   return (
     <div className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
@@ -45,6 +46,9 @@ export default function BulkFileRow({ item, onCategoryChange, onRemove, showCate
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="to_be_sorted">📁 To Be Sorted</SelectItem>
+            {isImage && PHOTO_CATEGORIES.map((c) => (
+              <SelectItem key={c.value} value={c.value}>📷 {c.label}</SelectItem>
+            ))}
             {CATEGORIES.map((c) => (
               <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
             ))}
@@ -52,7 +56,7 @@ export default function BulkFileRow({ item, onCategoryChange, onRemove, showCate
         </Select>
       ) : (
         <Badge variant="secondary" className="text-xs shrink-0">
-          {item.category === "to_be_sorted" ? "To Be Sorted" : CATEGORIES.find(c => c.value === item.category)?.label || item.category}
+          {item.category === "to_be_sorted" ? "To Be Sorted" : ALL_CATS.find(c => c.value === item.category)?.label || item.category}
         </Badge>
       )}
 

@@ -1,3 +1,17 @@
+export const PHOTO_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "heic", "heif"];
+
+export const PHOTO_CATEGORIES = [
+  { value: "photo_event", label: "Event / Gathering" },
+  { value: "photo_people", label: "People / Portraits" },
+  { value: "photo_facility", label: "Facility / Building" },
+  { value: "photo_product", label: "Product / Equipment" },
+  { value: "photo_project", label: "Project / Site" },
+  { value: "photo_marketing", label: "Marketing / Promo" },
+  { value: "photo_training", label: "Training / Workshop" },
+  { value: "photo_document", label: "Document / Receipt" },
+  { value: "photo_misc", label: "Miscellaneous" },
+];
+
 export const CATEGORIES = [
   { value: "finance", label: "Finance" },
   { value: "hr", label: "Human Resources" },
