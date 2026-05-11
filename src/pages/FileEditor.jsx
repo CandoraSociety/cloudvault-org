@@ -391,7 +391,7 @@ export default function FileEditor() {
         <div className="flex flex-1 overflow-hidden">
 
           {/* Left toolbar — hidden on mobile */}
-          <div className="hidden sm:flex w-14 border-r bg-card flex-col items-center py-3 gap-1 shrink-0 overflow-y-auto">
+          <div className="w-14 border-r bg-card flex flex-col items-center py-3 gap-1 shrink-0 overflow-y-auto">
             {DRAW_TOOLS.map(({ id, icon: Icon, label }, i) => (
               <React.Fragment key={id}>
                 {(i === 1 || i === 4 || i === 7 || i === 9) && <div className="h-px w-8 bg-border my-1" />}
@@ -456,7 +456,7 @@ export default function FileEditor() {
           </div>
 
           {/* Right panel — hidden on mobile */}
-          <div className="hidden sm:flex w-56 border-l bg-card shrink-0 flex-col overflow-hidden">
+          <div className="w-56 border-l bg-card shrink-0 flex flex-col overflow-hidden">
             <div className="flex border-b shrink-0">
               <button onClick={() => setRightPanel("tools")}
                 className={`flex-1 py-2 text-xs font-medium transition-colors ${rightPanel === "tools" ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"}`}>
