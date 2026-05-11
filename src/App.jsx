@@ -15,6 +15,7 @@ import FileViewer from './pages/FileViewer';
 import FileEditor from './pages/FileEditor';
 import Collections from './pages/Collections';
 import Workspace from './pages/Workspace';
+import BulkUpload from './pages/BulkUpload';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -45,6 +46,7 @@ const AuthenticatedApp = () => {
         <Route path="/search" element={<SearchPage />} />
         <Route path="/collections" element={<Collections />} />
         <Route path="/workspace" element={<Workspace />} />
+        <Route path="/bulk-upload" element={<BulkUpload />} />
       </Route>
       <Route path="/view" element={<FileViewer />} />
       <Route path="/edit" element={<FileEditor />} />
