@@ -164,8 +164,8 @@ export default function PhotoSorterDialog({ photos, onDone, onCancel }) {
 
   if (!current) return null;
 
-  // Photos available for the "apply to others" overlay (all except current)
-  const remainingPhotos = photos.filter((p, i) => i !== index);
+  // Photos available for the "apply to others" overlay (unassigned, except current)
+  const remainingPhotos = photos.filter((p, i) => i !== index && assignments[p.id] === "to_be_sorted");
 
   return (
     <>
