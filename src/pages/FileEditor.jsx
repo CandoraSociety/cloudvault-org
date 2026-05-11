@@ -300,6 +300,8 @@ export default function FileEditor() {
     setShowSaveDialog(false);
   };
 
+  const isEditing = mode === "editing";
+
   if (mode === "loading" || vaultLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background">
@@ -307,8 +309,6 @@ export default function FileEditor() {
       </div>
     );
   }
-
-  const isEditing = mode === "editing";
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background">
@@ -319,6 +319,11 @@ export default function FileEditor() {
         </Button>
         <span className="font-semibold text-sm">File Editor</span>
         {sourceFile && <span className="text-xs text-muted-foreground truncate hidden sm:block">— {sourceFile.display_name || sourceFile.original_name}</span>}
+        {isEditing && (
+          <span className="ml-2 hidden sm:inline-flex items-center gap-1.5 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs font-medium border border-primary/20">
+            {(() => { const t = DRAW_TOOLS.find(t => t.id === tool); return t ? <><t.icon className="h-3 w-3" />{t.label}</> : null; })()}
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-2">
           {isEditing && sourceFile?.id && (
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowShareDialog(true)}>
@@ -443,7 +448,7 @@ export default function FileEditor() {
                   onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
                   onTouchStart={onMouseDown} onTouchMove={onMouseMove} onTouchEnd={onMouseUp}
                 />
-                <div className="absolute top-3 left-3 z-10 bg-yellow-50 border border-yellow-300 text-yellow-800 text-xs px-2 py-1 rounded-full shadow-sm">
+                <div className="absolute top-3 left-3 z-10 bg-yellow-50 border border-yellow-300 text-yellow-800 text-xs px-2 py-1 rounded-full shadow-sm hidden sm:block">
                   Annotation layer — draw on top of document
                 </div>
               </div>
