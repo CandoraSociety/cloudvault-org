@@ -47,11 +47,11 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatCard title="Total Files" value={accessibleFiles.length} icon={FileText} description="Files you can access" />
-        <StatCard title="Universal Files" value={universalFiles.length} icon={Globe} description="Org-wide access" />
-        <StatCard title="Manager Files" value={managerFiles.length} icon={Shield} description="Restricted access" />
-        <StatCard title="Finance Files" value={financeFiles.length} icon={DollarSign} description="Finance-restricted" />
-        <StatCard title="My Files" value={myFiles.length} icon={User} description="Personal files" />
+        <StatCard title="Total Files" value={accessibleFiles.length} icon={FileText} description="Files you can access" href="/files" />
+        <StatCard title="Universal Files" value={universalFiles.length} icon={Globe} description="Org-wide access" href="/files?access=universal" />
+        <StatCard title="Manager Files" value={managerFiles.length} icon={Shield} description="Restricted access" href="/files?access=manager" />
+        <StatCard title="Finance Files" value={financeFiles.length} icon={DollarSign} description="Finance-restricted" href="/files?access=finance" />
+        <StatCard title="My Files" value={myFiles.length} icon={User} description="Personal files" href="/files?access=personal" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -1,9 +1,10 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
+import { Link } from "react-router-dom";
 
-export default function StatCard({ title, value, icon: Icon, description }) {
-  return (
-    <Card className="p-5">
+export default function StatCard({ title, value, icon: Icon, description, href }) {
+  const content = (
+    <Card className={`p-5 ${href ? "hover:shadow-md hover:border-primary/30 transition-all cursor-pointer" : ""}`}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-muted-foreground font-medium">{title}</p>
@@ -16,4 +17,6 @@ export default function StatCard({ title, value, icon: Icon, description }) {
       </div>
     </Card>
   );
+
+  return href ? <Link to={href}>{content}</Link> : content;
 }
