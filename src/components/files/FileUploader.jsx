@@ -178,13 +178,11 @@ export default function FileUploader({ onUploadComplete }) {
               <Label>Access Level</Label>
               <div className="grid grid-cols-3 gap-3">
                 {ACCESS_LEVELS.map((al) => {
-                  const isManagerOption = al.value === "manager";
                   const canSelectManager = user?.role === "admin" || user?.role === "manager";
-                  const disabled = isManagerOption && !canSelectManager;
-
-                  const isFinanceOption = al.value === "finance";
                   const canSelectFinance = user?.role === "admin" || user?.role === "finance";
-                  if (isFinanceOption) disabled = !canSelectFinance;
+                  const disabled =
+                    (al.value === "manager" && !canSelectManager) ||
+                    (al.value === "finance" && !canSelectFinance);
 
                   return (
                     <Card
