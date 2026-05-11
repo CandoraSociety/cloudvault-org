@@ -13,6 +13,8 @@ import UploadPage from './pages/UploadPage';
 import SearchPage from './pages/SearchPage';
 import FileViewer from './pages/FileViewer';
 import FileEditor from './pages/FileEditor';
+import Collections from './pages/Collections';
+import Workspace from './pages/Workspace';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -41,6 +43,8 @@ const AuthenticatedApp = () => {
         <Route path="/files" element={<FileBrowser />} />
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/collections" element={<Collections />} />
+        <Route path="/workspace" element={<Workspace />} />
       </Route>
       <Route path="/view" element={<FileViewer />} />
       <Route path="/edit" element={<FileEditor />} />

@@ -1,0 +1,47 @@
+{
+  "name": "WorkspaceItem",
+  "type": "object",
+  "properties": {
+    "owner_email": {
+      "type": "string",
+      "description": "Email of the workspace owner"
+    },
+    "file_id": {
+      "type": "string",
+      "description": "Reference to a vault file (if pinned from vault)"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL of the uploaded file"
+    },
+    "original_name": {
+      "type": "string",
+      "description": "Original filename"
+    },
+    "file_type": {
+      "type": "string",
+      "description": "File extension"
+    },
+    "file_size": {
+      "type": "number",
+      "description": "File size in bytes"
+    },
+    "notes": {
+      "type": "string",
+      "description": "User notes about this workspace item"
+    },
+    "pinned_from_vault": {
+      "type": "boolean",
+      "description": "Whether this was pulled from the vault",
+      "default": false
+    },
+    "label": {
+      "type": "string",
+      "description": "Custom label for this item"
+    }
+  },
+  "required": [
+    "owner_email",
+    "original_name"
+  ]
+}

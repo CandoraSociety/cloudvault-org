@@ -9,6 +9,14 @@ export const CATEGORIES = [
   { value: "policies", label: "Policies" },
   { value: "reports", label: "Reports" },
   { value: "templates", label: "Templates" },
+  { value: "grants", label: "Grants & Funding" },
+  { value: "contracts", label: "Contracts & Agreements" },
+  { value: "insurance", label: "Insurance" },
+  { value: "compliance", label: "Compliance & Regulatory" },
+  { value: "board", label: "Board & Governance" },
+  { value: "correspondence", label: "Correspondence & Letters" },
+  { value: "projects", label: "Projects" },
+  { value: "training", label: "Training & Development" },
 ];
 
 export const ACCESS_LEVELS = [
