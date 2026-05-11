@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, Upload, Download, Save, Pen, Eraser, Type, Square,
   Circle, Minus, Undo, Redo, Trash2, Loader2, ImageIcon, ZoomIn, ZoomOut,
-  Share2, X, FileText, ExternalLink, PenLine, Highlighter, StickyNote, LayoutTemplate
+  Share2, X, FileText, ExternalLink, PenLine, Highlighter, StickyNote, LayoutTemplate,
+  MousePointer2, ChevronUp, ChevronDown, Palette
 } from "lucide-react";
 import SignatureDialog from "@/components/files/SignatureDialog";
 import ShareDialog from "@/components/files/ShareDialog";
@@ -25,6 +26,7 @@ const HIGHLIGHT_COLORS = ["#fef08a", "#86efac", "#93c5fd", "#fca5a5", "#d8b4fe"]
 const SIZES = [2, 4, 8, 14, 20];
 
 const DRAW_TOOLS = [
+  { id: "scroll", icon: MousePointer2, label: "Scroll / Pan" },
   { id: "pen", icon: Pen, label: "Freehand Draw" },
   { id: "eraser", icon: Eraser, label: "Eraser" },
   { id: "highlight", icon: Highlighter, label: "Highlight" },
@@ -48,6 +50,7 @@ export default function FileEditor() {
   const [fileKind, setFileKind] = useState(null);
   const [docUrl, setDocUrl] = useState(null);
   const [rightPanel, setRightPanel] = useState("tools"); // "tools" | "overlays"
+  const [showMobilePanel, setShowMobilePanel] = useState(false);
 
   // Canvas
   const canvasRef = useRef(null);
@@ -382,15 +385,16 @@ export default function FileEditor() {
       {isEditing && (
         <div className="flex flex-1 overflow-hidden">
 
-          {/* Left toolbar */}
-          <div className="w-14 border-r bg-card flex flex-col items-center py-3 gap-1 shrink-0 overflow-y-auto">
+          {/* Left toolbar — hidden on mobile */}
+          <div className="hidden sm:flex w-14 border-r bg-card flex-col items-center py-3 gap-1 shrink-0 overflow-y-auto">
             {DRAW_TOOLS.map(({ id, icon: Icon, label }, i) => (
               <React.Fragment key={id}>
-                {(i === 3 || i === 6 || i === 8) && <div className="h-px w-8 bg-border my-1" />}
+                {(i === 1 || i === 4 || i === 7 || i === 9) && <div className="h-px w-8 bg-border my-1" />}
                 <button title={label} onClick={() => id === "sign" ? setShowSignatureDialog(true) : setTool(id)}
                   className={`h-9 w-9 rounded-lg flex items-center justify-center transition-colors
                     ${tool === id && id !== "sign" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}
-                    ${id === "sign" ? "text-primary" : ""}`}>
+                    ${id === "sign" ? "text-primary" : ""}
+                    ${id === "scroll" ? "text-blue-500" : ""}`}>
                   <Icon className="h-4 w-4" />
                 </button>
               </React.Fragment>
@@ -402,7 +406,7 @@ export default function FileEditor() {
           </div>
 
           {/* Center canvas/viewer */}
-          <div className="flex-1 overflow-auto bg-muted/30">
+          <div className="flex-1 overflow-auto bg-muted/30 pb-16 sm:pb-0" style={{ touchAction: tool === "scroll" ? "auto" : "none" }}>
             {fileKind === "image" && (
               <div className="min-h-full flex items-start justify-center p-6">
                 <div style={{ transform: `scale(${zoom})`, transformOrigin: "top center", transition: "transform 0.15s" }}>
@@ -432,9 +436,9 @@ export default function FileEditor() {
                   className="absolute top-0 left-0 w-full"
                   style={{
                     height: "calc(100vh - 52px)",
-                    touchAction: "none",
-                    cursor: tool === "text" ? "text" : "crosshair",
-                    pointerEvents: "auto",
+                    touchAction: tool === "scroll" ? "auto" : "none",
+                    cursor: tool === "scroll" ? "grab" : tool === "text" ? "text" : "crosshair",
+                    pointerEvents: tool === "scroll" ? "none" : "auto",
                   }}
                   onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
                   onTouchStart={onMouseDown} onTouchMove={onMouseMove} onTouchEnd={onMouseUp}
@@ -446,8 +450,8 @@ export default function FileEditor() {
             )}
           </div>
 
-          {/* Right panel */}
-          <div className="w-56 border-l bg-card shrink-0 flex flex-col overflow-hidden">
+          {/* Right panel — hidden on mobile */}
+          <div className="hidden sm:flex w-56 border-l bg-card shrink-0 flex-col overflow-hidden">
             <div className="flex border-b shrink-0">
               <button onClick={() => setRightPanel("tools")}
                 className={`flex-1 py-2 text-xs font-medium transition-colors ${rightPanel === "tools" ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"}`}>
@@ -547,6 +551,70 @@ export default function FileEditor() {
                 />
               </div>
             )}
+          </div>
+
+          {/* Mobile floating toolbar */}
+          <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-card border-t shadow-lg">
+            {/* Expandable panel */}
+            {showMobilePanel && (
+              <div className="p-3 border-b max-h-52 overflow-y-auto">
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex-1">Color</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(tool === "highlight" ? HIGHLIGHT_COLORS : COLORS).map((c) => (
+                      <button key={c} onClick={() => setColor(c)}
+                        className={`h-6 w-6 rounded-full border-2 ${color === c ? "scale-125 border-primary" : "border-border"}`}
+                        style={{ background: c }} />
+                    ))}
+                    <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-6 w-6 rounded cursor-pointer border border-border" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Size</p>
+                  <div className="flex gap-1.5">
+                    {SIZES.map((s) => (
+                      <button key={s} onClick={() => setSize(s)}
+                        className={`h-7 w-7 rounded-lg border flex items-center justify-center text-xs font-medium ${size === s ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {tool === "text" && (
+                  <div className="mt-2 flex gap-2">
+                    <Input value={textInput} onChange={(e) => setTextInput(e.target.value)} placeholder="Text to place..." className="text-sm h-8 flex-1" />
+                    <Button size="sm" onClick={addText} disabled={!textInput || !textPos}>Place</Button>
+                  </div>
+                )}
+                {tool === "sticky" && (
+                  <div className="mt-2">
+                    <Input value={stickyText} onChange={(e) => setStickyText(e.target.value)} placeholder="Sticky note text..." className="text-sm h-8" />
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Tool strip */}
+            <div className="flex items-center px-2 py-1 gap-0.5 overflow-x-auto">
+              {DRAW_TOOLS.map(({ id, icon: Icon, label }) => (
+                <button key={id} title={label}
+                  onClick={() => id === "sign" ? setShowSignatureDialog(true) : setTool(id)}
+                  className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center transition-colors
+                    ${tool === id && id !== "sign" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}
+                    ${id === "scroll" ? "text-blue-500" : ""}
+                    ${id === "sign" ? "text-primary" : ""}`}>
+                  <Icon className="h-4 w-4" />
+                </button>
+              ))}
+              <div className="h-6 w-px bg-border mx-1 shrink-0" />
+              <button onClick={undo} className="h-10 w-10 shrink-0 rounded-lg flex items-center justify-center hover:bg-muted"><Undo className="h-4 w-4" /></button>
+              <button onClick={redo} className="h-10 w-10 shrink-0 rounded-lg flex items-center justify-center hover:bg-muted"><Redo className="h-4 w-4" /></button>
+              <button onClick={clearCanvas} className="h-10 w-10 shrink-0 rounded-lg flex items-center justify-center hover:bg-muted text-destructive"><Trash2 className="h-4 w-4" /></button>
+              <div className="h-6 w-px bg-border mx-1 shrink-0" />
+              <button onClick={() => setShowMobilePanel((v) => !v)}
+                className="h-10 w-10 shrink-0 rounded-lg flex items-center justify-center hover:bg-muted text-primary">
+                {showMobilePanel ? <ChevronDown className="h-4 w-4" /> : <Palette className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
         </div>
       )}
