@@ -2,7 +2,8 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, Grid, List, Upload, Loader2, SortAsc } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Grid, List, Upload, Loader2, SortAsc, Globe, User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import FileCard from "@/components/files/FileCard";
@@ -24,6 +25,7 @@ export default function FileBrowser() {
     fileType: "all",
     sort: "-created_date",
   });
+  const [activeTab, setActiveTab] = useState("all"); // "all" | "universal"
   const [showSorting, setShowSorting] = useState(false);
   const [filesToSort, setFilesToSort] = useState([]);
 
@@ -55,6 +57,11 @@ export default function FileBrowser() {
 
   const filteredFiles = useMemo(() => {
     let result = [...files];
+
+    // Filter by tab
+    if (activeTab === "universal") {
+      result = result.filter((f) => f.access_level === "universal");
+    }
 
     if (search) {
       const q = search.toLowerCase();
@@ -103,7 +110,7 @@ export default function FileBrowser() {
     });
 
     return result;
-  }, [files, search, filters]);
+  }, [files, search, filters, activeTab]);
 
   if (isLoading) {
     return (
@@ -120,8 +127,8 @@ export default function FileBrowser() {
         <div>
           <h1 className="text-2xl font-bold">File Browser</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {filteredFiles.length} file{filteredFiles.length !== 1 ? "s" : ""}
-            {unsortedFiles.length > 0 && (
+            {activeTab === "universal" ? "Universal" : "All"} Files · {filteredFiles.length} file{filteredFiles.length !== 1 ? "s" : ""}
+            {unsortedFiles.length > 0 && activeTab !== "universal" && (
               <span className="ml-2 text-amber-600">
                 · {unsortedFiles.length} need sorting
               </span>
@@ -145,23 +152,36 @@ export default function FileBrowser() {
         </div>
       </div>
 
-      {/* Search + Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <SearchBar value={search} onChange={setSearch} placeholder="Search files by name, description, or keywords..." />
-        <FileFilters filters={filters} onFilterChange={setFilters} />
-        <div className="ml-auto flex items-center gap-1 border rounded-lg p-1">
-          <button
-            onClick={() => setViewMode("grid")}
-            className={`h-8 px-3 rounded-md text-sm font-medium transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-          >
-            <Grid className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setViewMode("list")}
-            className={`h-8 px-3 rounded-md text-sm font-medium transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-          >
-            <List className="h-4 w-4" />
-          </button>
+      {/* Tabs + Search + Filters */}
+      <div className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="all" className="gap-1.5">
+              <User className="h-3.5 w-3.5" /> All Files
+            </TabsTrigger>
+            <TabsTrigger value="universal" className="gap-1.5">
+              <Globe className="h-3.5 w-3.5" /> Universal
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="flex items-center gap-4 flex-wrap">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search files by name, description, or keywords..." />
+          <FileFilters filters={filters} onFilterChange={setFilters} />
+          <div className="ml-auto flex items-center gap-1 border rounded-lg p-1">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`h-8 px-3 rounded-md text-sm font-medium transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+            >
+              <Grid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`h-8 px-3 rounded-md text-sm font-medium transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 
