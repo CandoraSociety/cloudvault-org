@@ -1,101 +1,113 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { X } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
-export default function QuickNoteModal({ onClose, onCreate }) {
+export default function QuickNoteModal({ open, onOpenChange, editingNote, onClose }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [tags, setTags] = useState([]);
-  const [tagInput, setTagInput] = useState("");
+  const [title, setTitle] = useState(editingNote?.title || "");
+  const [content, setContent] = useState(editingNote?.content || "");
+  const [tags, setTags] = useState(editingNote?.tags?.join(", ") || "");
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleCreate = async () => {
+  const saveNoteMutation = useMutation({
+    mutationFn: async () => {
+      if (editingNote) {
+        await base44.entities.Note.update(editingNote.id, {
+          title,
+          content,
+          tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+        });
+      } else {
+        await base44.entities.Note.create({
+          title,
+          content,
+          tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+          owner_email: user?.email,
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      toast.success(editingNote ? "Note updated" : "Note created");
+      setTitle("");
+      setContent("");
+      setTags("");
+      onClose();
+    },
+    onError: () => {
+      toast.error("Failed to save note");
+    },
+  });
+
+  const handleSave = () => {
     if (!title.trim() || !content.trim()) return;
-
-    const newNote = await base44.entities.Note.create({
-      title,
-      content: `<p>${content.replace(/\n/g, "<br/>")}</p>`,
-      tags,
-      owner_email: user?.email,
-      is_pinned: false,
-    });
-
-    toast.success("Note created!");
-    onCreate(newNote);
+    setIsSaving(true);
+    saveNoteMutation.mutate();
   };
 
-  const addTag = () => {
-    const tag = tagInput.trim().toLowerCase();
-    if (tag && !tags.includes(tag)) {
-      setTags([...tags, tag]);
-      setTagInput("");
-    }
-  };
-
-  const removeTag = (tag) => {
-    setTags(tags.filter((t) => t !== tag));
+  const modules = {
+    toolbar: [
+      [{ header: [1, 2, 3, false] }],
+      ["bold", "italic", "underline", "strike"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      ["clean"],
+    ],
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-card rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b">
-          <h3 className="font-semibold">New Note</h3>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}><X className="h-4 w-4" /></Button>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>{editingNote ? "Edit Note" : "New Note"}</DialogTitle></DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          <div className="space-y-2">
+        <div className="space-y-4">
+          <div>
             <Label>Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Note title..." className="text-lg font-semibold" />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Content</Label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Write your note here..."
-              className="w-full min-h-[200px] p-3 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Note title"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Tags</Label>
-            <div className="flex gap-2">
-              <Input
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                placeholder="Add a tag..."
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
-              />
-              <Button variant="outline" onClick={addTag}>Add</Button>
-            </div>
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {tags.map((tag, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-secondary text-secondary-foreground">
-                    {tag}
-                    <button onClick={() => removeTag(tag)} className="hover:text-destructive"><X className="h-3 w-3" /></button>
-                  </span>
-                ))}
-              </div>
-            )}
+          <div>
+            <Label>Content</Label>
+            <ReactQuill
+              theme="snow"
+              value={content}
+              onChange={setContent}
+              modules={modules}
+              className="bg-white"
+              placeholder="Write your note here..."
+            />
+          </div>
+
+          <div>
+            <Label>Tags (comma-separated)</Label>
+            <Input
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="work, important, follow-up"
+            />
           </div>
         </div>
 
-        <div className="flex gap-2 justify-end px-5 py-4 border-t">
+        <div className="flex justify-end gap-2 mt-4">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleCreate} disabled={!title.trim() || !content.trim()}>Create Note</Button>
+          <Button onClick={handleSave} disabled={isSaving || !title.trim() || !content.trim()}>
+            {isSaving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Save Note"}
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

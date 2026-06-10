@@ -1,79 +1,111 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Share2, X, Save, Loader2 } from "lucide-react";
-import { ACCESS_LEVELS } from "@/lib/fileHelpers";
+import { Loader2, Mail, Link as LinkIcon } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/AuthContext";
 
-export default function ShareDialog({ file, onClose, onSave }) {
-  const [emails, setEmails] = useState(file?.finance_authorized_emails || []);
-  const [emailInput, setEmailInput] = useState("");
-  const [accessLevel, setAccessLevel] = useState(file?.access_level || "personal");
-  const [saving, setSaving] = useState(false);
+export default function ShareDialog({ file, open, onOpenChange }) {
+  const { user } = useAuth();
+  const [emails, setEmails] = useState("");
+  const [accessLevel, setAccessLevel] = useState("view");
+  const [isSharing, setIsSharing] = useState(false);
 
-  const addEmail = () => {
-    const em = emailInput.trim().toLowerCase();
-    if (em && !emails.includes(em)) { setEmails([...emails, em]); setEmailInput(""); }
+  const shareMutation = useMutation({
+    mutationFn: async () => {
+      const emailList = emails.split(",").map((e) => e.trim()).filter(Boolean);
+      if (emailList.length === 0) throw new Error("Please enter at least one email");
+
+      for (const email of emailList) {
+        await base44.integrations.Core.SendEmail({
+          to: email,
+          subject: `${user?.full_name} shared a file with you`,
+          body: `Hi,\n\n${user?.full_name} has shared "${file?.display_name || file?.original_name}" with you.\n\nAccess level: ${accessLevel}\n\nBest regards,\nCloudVault Team`,
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success(`File shared with ${emails.split(",").length} recipient(s)`);
+      setEmails("");
+      onOpenChange(false);
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to share file");
+    },
+  });
+
+  const handleShare = () => {
+    if (!emails.trim()) return;
+    setIsSharing(true);
+    shareMutation.mutate();
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    await base44.entities.File.update(file.id, {
-      access_level: accessLevel,
-      finance_authorized_emails: emails,
-    });
-    toast.success("Access settings updated!");
-    setSaving(false);
-    onSave?.();
-    onClose();
+  const copyLink = () => {
+    const url = `${window.location.origin}/view?id=${file?.id}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied to clipboard");
   };
+
+  if (!file) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-card rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold flex items-center gap-2"><Share2 className="h-4 w-4" /> Share Access</h3>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}><X className="h-4 w-4" /></Button>
-        </div>
-        <div className="space-y-2">
-          <Label>Access Level</Label>
-          <Select value={accessLevel} onValueChange={setAccessLevel}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {ACCESS_LEVELS.map((a) => <SelectItem key={a.value} value={a.value}>{a.label} — {a.description}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>Share with specific users (email)</Label>
-          <p className="text-xs text-muted-foreground">These users will be able to access the file regardless of their role.</p>
-          <div className="flex gap-2">
-            <Input value={emailInput} onChange={(e) => setEmailInput(e.target.value)} placeholder="user@company.com" type="email"
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addEmail())} />
-            <Button variant="outline" onClick={addEmail}>Add</Button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Share File</DialogTitle></DialogHeader>
+
+        <div className="space-y-4">
+          <div className="p-3 bg-muted rounded-lg">
+            <p className="text-sm font-medium">{file.display_name || file.original_name}</p>
+            <p className="text-xs text-muted-foreground">Share this file with others</p>
           </div>
-          {emails.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {emails.map((em) => (
-                <Badge key={em} variant="secondary" className="gap-1 pr-1">
-                  {em}
-                  <button onClick={() => setEmails(emails.filter((e) => e !== em))} className="hover:text-destructive"><X className="h-3 w-3" /></button>
-                </Badge>
-              ))}
+
+          <div>
+            <Label>Send via Email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={emails}
+                onChange={(e) => setEmails(e.target.value)}
+                placeholder="email1@example.com, email2@example.com"
+                className="pl-9"
+              />
             </div>
-          )}
+            <p className="text-xs text-muted-foreground mt-1">Separate multiple emails with commas</p>
+          </div>
+
+          <div>
+            <Label>Access Level</Label>
+            <select
+              value={accessLevel}
+              onChange={(e) => setAccessLevel(e.target.value)}
+              className="w-full border rounded-md px-3 py-2 text-sm"
+            >
+              <option value="view">View Only</option>
+              <option value="edit">Can Edit</option>
+              <option value="download">Can Download</option>
+            </select>
+          </div>
+
+          <div className="border-t pt-4">
+            <Label>Or share via link</Label>
+            <div className="flex items-center gap-2 mt-2">
+              <Input value={`${window.location.origin}/view?id=${file?.id}`} readOnly className="text-xs" />
+              <Button variant="outline" size="sm" onClick={copyLink}><LinkIcon className="h-4 w-4" /></Button>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2 pt-2">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button className="flex-1 gap-1.5" onClick={handleSave} disabled={saving}>
-            {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save</>}
+
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleShare} disabled={isSharing || !emails.trim()}>
+            {isSharing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Sharing...</> : "Share"}
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
