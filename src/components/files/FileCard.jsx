@@ -2,19 +2,19 @@ import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Eye, Clock, Shield, Globe, User, MoreVertical, Trash2, DollarSign, ExternalLink, Building2, Palette, ChevronDown } from "lucide-react";
+import { Download, FileText, Eye, Clock, Shield, Globe, User, MoreVertical, Trash2, DollarSign, ExternalLink, Building2, Palette } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { FILE_CATEGORIES } from "@/lib/fileHelpers";
-
-const CANVA_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "pdf"];
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getFileExtension, getFileTypeStyle, formatFileSize } from "@/lib/fileHelpers";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import FileSummaryDialog from "./FileSummaryDialog";
+
+const CANVA_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "pdf"];
 
 const accessIcons = {
   personal: User,

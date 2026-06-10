@@ -1,10 +1,5 @@
 import React, { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, Calendar, User, Tag, Eye, EyeOff, ExternalLink } from "lucide-react";
@@ -14,10 +9,6 @@ import { format } from "date-fns";
 
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
 const CANVA_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "pdf"];
-
-const openInCanva = (fileUrl) => {
-  window.open(`https://www.canva.com/create/import/?url=${encodeURIComponent(fileUrl)}`, "_blank");
-};
 const PREVIEWABLE_EXTS = ["pdf", ...IMAGE_EXTS, "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv"];
 
 export default function FileSummaryDialog({ file, open, onOpenChange }) {
@@ -77,13 +68,11 @@ export default function FileSummaryDialog({ file, open, onOpenChange }) {
             </div>
           </div>
 
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="secondary" className="capitalize">{file.access_level}</Badge>
-              <Badge variant="outline" className="capitalize">{file.category?.replace(/_/g, " ")}</Badge>
-              <Badge variant="outline">{ext.toUpperCase()}</Badge>
-              <Badge variant="outline">{formatFileSize(file.file_size)}</Badge>
-            </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="secondary" className="capitalize">{file.access_level}</Badge>
+            <Badge variant="outline" className="capitalize">{file.category?.replace(/_/g, " ")}</Badge>
+            <Badge variant="outline">{ext.toUpperCase()}</Badge>
+            <Badge variant="outline">{formatFileSize(file.file_size)}</Badge>
           </div>
 
           {file.keywords?.length > 0 && (
@@ -124,7 +113,7 @@ export default function FileSummaryDialog({ file, open, onOpenChange }) {
               </Button>
             )}
             {canOpenInCanva && (
-              <Button variant="outline" className="flex-1 gap-2" onClick={() => openInCanva(file.file_url)}>
+              <Button variant="outline" className="flex-1 gap-2" onClick={() => window.open(`https://www.canva.com/create/import/?url=${encodeURIComponent(file.file_url)}`, "_blank")}>
                 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Canva_Logo.svg/24px-Canva_Logo.svg.png" alt="Canva" className="h-4 w-4 object-contain" />
                 Edit in Canva
               </Button>

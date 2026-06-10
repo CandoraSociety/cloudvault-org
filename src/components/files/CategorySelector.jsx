@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 export default function CategorySelector({ file, fileUrl, categories, value, subcategory, onChange, onSubcategoryChange, onCategoriesUpdated }) {
   const [analyzing, setAnalyzing] = useState(false);
-  const [recommendations, setRecommendations] = useState(null); // { category, subcategory, reason, new_categories }
+  const [recommendations, setRecommendations] = useState(null);
   const [autoDecide, setAutoDecide] = useState(false);
 
   const analyzeFile = async () => {
@@ -71,7 +71,6 @@ Respond as JSON:
         ...(canRead && fileUrl ? { file_urls: [fileUrl] } : {}),
       });
 
-      // Create any new categories suggested
       if (result.new_categories?.length > 0) {
         const existingValues = categories.map((c) => c.value);
         const toCreate = result.new_categories.filter((nc) => !existingValues.includes(nc.value));
@@ -147,7 +146,6 @@ Respond as JSON:
         </SelectContent>
       </Select>
 
-      {/* Recommendation banner */}
       {recommendations && !analyzing && (
         <div className={cn(
           "rounded-lg border p-3 text-sm space-y-2",
@@ -180,7 +178,6 @@ Respond as JSON:
         </div>
       )}
 
-      {/* Subcategory field if we have one */}
       {subcategory !== undefined && (
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Subcategory <span className="font-normal">(optional)</span></Label>

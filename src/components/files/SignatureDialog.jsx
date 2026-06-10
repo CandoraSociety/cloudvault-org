@@ -20,18 +20,15 @@ export default function SignatureDialog({ open, onOpenChange, onApply }) {
   const [color, setColor] = useState("#000000");
   const [wetFilter, setWetFilter] = useState(false);
 
-  // Draw tab
   const canvasRef = useRef(null);
   const [drawing, setDrawing] = useState(false);
   const [hasDrawing, setHasDrawing] = useState(false);
   const [brushSize, setBrushSize] = useState(2);
   const lastPos = useRef(null);
 
-  // Type tab
   const [typedName, setTypedName] = useState("");
   const [fontChoice, setFontChoice] = useState(SIGNATURE_FONTS[0].value);
 
-  // Upload tab
   const [uploadedSrc, setUploadedSrc] = useState(null);
 
   const clearCanvas = useCallback(() => {
@@ -79,12 +76,6 @@ export default function SignatureDialog({ open, onOpenChange, onApply }) {
     ctx.lineWidth = brushSize;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-
-    // Pen-like pressure variation based on speed
-    const speed = Math.sqrt(
-      Math.pow(pos.x - lastPos.current.x, 2) + Math.pow(pos.y - lastPos.current.y, 2)
-    );
-    ctx.lineWidth = Math.max(brushSize * 0.5, brushSize * (1 - speed / 80));
     ctx.stroke();
 
     lastPos.current = pos;
@@ -93,32 +84,9 @@ export default function SignatureDialog({ open, onOpenChange, onApply }) {
 
   const endDraw = () => setDrawing(false);
 
-  const applyWetFilter = (srcCanvas) => {
-    const out = document.createElement("canvas");
-    out.width = srcCanvas.width;
-    out.height = srcCanvas.height;
-    const ctx = out.getContext("2d");
-    ctx.drawImage(srcCanvas, 0, 0);
-    const imageData = ctx.getImageData(0, 0, out.width, out.height);
-    const d = imageData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      if (d[i + 3] > 10) {
-        // Slight blue shift and variable opacity — wet ink look
-        d[i] = Math.max(0, d[i] - 20);
-        d[i + 2] = Math.min(255, d[i + 2] + 30);
-        d[i + 3] = Math.min(255, d[i + 3] * (0.7 + Math.random() * 0.3));
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
-    // Slight blur for ink spread
-    ctx.filter = "blur(0.4px)";
-    ctx.drawImage(out, 0, 0);
-    return out;
-  };
-
   const getDrawnDataUrl = () => {
     const canvas = canvasRef.current;
-    if (wetFilter) return applyWetFilter(canvas).toDataURL("image/png");
+    if (!canvas) return null;
     return canvas.toDataURL("image/png");
   };
 
@@ -131,7 +99,6 @@ export default function SignatureDialog({ open, onOpenChange, onApply }) {
     ctx.fillStyle = color;
     ctx.textBaseline = "middle";
     ctx.fillText(typedName, 12, 64);
-    if (wetFilter) return applyWetFilter(canvas).toDataURL("image/png");
     return canvas.toDataURL("image/png");
   };
 
@@ -139,21 +106,7 @@ export default function SignatureDialog({ open, onOpenChange, onApply }) {
     let dataUrl = null;
     if (tab === "draw" && hasDrawing) dataUrl = getDrawnDataUrl();
     else if (tab === "type" && typedName.trim()) dataUrl = getTypedDataUrl();
-    else if (tab === "upload" && uploadedSrc) {
-      if (wetFilter) {
-        const img = new window.Image();
-        img.onload = () => {
-          const tmp = document.createElement("canvas");
-          tmp.width = img.width; tmp.height = img.height;
-          tmp.getContext("2d").drawImage(img, 0, 0);
-          onApply(applyWetFilter(tmp).toDataURL("image/png"));
-        };
-        img.src = uploadedSrc;
-        onOpenChange(false);
-        return;
-      }
-      dataUrl = uploadedSrc;
-    }
+    else if (tab === "upload" && uploadedSrc) dataUrl = uploadedSrc;
     if (dataUrl) {
       onApply(dataUrl);
       onOpenChange(false);
@@ -181,7 +134,6 @@ export default function SignatureDialog({ open, onOpenChange, onApply }) {
             <TabsTrigger value="upload" className="gap-1.5"><Upload className="h-3.5 w-3.5" /> Upload</TabsTrigger>
           </TabsList>
 
-          {/* Draw Tab */}
           <TabsContent value="draw" className="space-y-3 mt-3">
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex gap-1.5">
@@ -220,7 +172,6 @@ export default function SignatureDialog({ open, onOpenChange, onApply }) {
             </Button>
           </TabsContent>
 
-          {/* Type Tab */}
           <TabsContent value="type" className="space-y-3 mt-3">
             <div className="space-y-2">
               <Label>Your name</Label>
@@ -248,7 +199,6 @@ export default function SignatureDialog({ open, onOpenChange, onApply }) {
             </div>
           </TabsContent>
 
-          {/* Upload Tab */}
           <TabsContent value="upload" className="space-y-3 mt-3">
             {uploadedSrc ? (
               <div className="space-y-2">
@@ -278,17 +228,6 @@ export default function SignatureDialog({ open, onOpenChange, onApply }) {
             )}
           </TabsContent>
         </Tabs>
-
-        {/* Wet filter toggle */}
-        <div className="flex items-center gap-2 pt-1">
-          <button
-            onClick={() => setWetFilter((v) => !v)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs transition-colors ${wetFilter ? "bg-blue-50 border-blue-300 text-blue-700" : "border-border text-muted-foreground hover:bg-muted"}`}>
-            <Droplets className="h-3.5 w-3.5" />
-            Wet Signature Filter
-          </button>
-          <span className="text-xs text-muted-foreground">Adds natural ink variation</span>
-        </div>
 
         <div className="flex gap-2 justify-end pt-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

@@ -1,203 +1,101 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Sparkles, X } from "lucide-react";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/AuthContext";
 
-export default function QuickNoteModal({ isOpen, onClose }) {
+export default function QuickNoteModal({ onClose, onCreate }) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [collectionId, setCollectionId] = useState("");
-  const [tags, setTags] = useState("");
-  const [formatting, setFormatting] = useState(null);
-  const [loadingFormat, setLoadingFormat] = useState(false);
-  const queryClient = useQueryClient();
+  const [tags, setTags] = useState([]);
+  const [tagInput, setTagInput] = useState("");
 
-  // Fetch collections
-  const { data: collections = [] } = useQuery({
-    queryKey: ["collections"],
-    queryFn: () => base44.entities.Collection.list(),
-    enabled: isOpen,
-  });
+  const handleCreate = async () => {
+    if (!title.trim() || !content.trim()) return;
 
-  // Create note mutation
-  const createNoteMutation = useMutation({
-    mutationFn: async (noteData) => {
-      return await base44.entities.Note.create(noteData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notes"] });
-      reset();
-      onClose();
-    },
-  });
+    const newNote = await base44.entities.Note.create({
+      title,
+      content: `<p>${content.replace(/\n/g, "<br/>")}</p>`,
+      tags,
+      owner_email: user?.email,
+      is_pinned: false,
+    });
 
-  const handleFormatContent = async () => {
-    if (!content.trim()) return;
-    
-    setLoadingFormat(true);
-    try {
-      const res = await base44.functions.invoke("formatNoteContent", { content });
-      setFormatting(res.data);
-      // Apply the formatted HTML
-      setContent(res.data.formatted_html);
-    } catch (error) {
-      console.error("Formatting error:", error);
-    } finally {
-      setLoadingFormat(false);
+    toast.success("Note created!");
+    onCreate(newNote);
+  };
+
+  const addTag = () => {
+    const tag = tagInput.trim().toLowerCase();
+    if (tag && !tags.includes(tag)) {
+      setTags([...tags, tag]);
+      setTagInput("");
     }
   };
 
-  const handleSave = async () => {
-    if (!title.trim() || !content.trim()) return;
-
-    const noteData = {
-      title,
-      content,
-      owner_email: (await base44.auth.me()).email,
-      ...(collectionId && { collection_id: collectionId }),
-      ...(tags.trim() && { tags: tags.split(",").map(t => t.trim()).filter(Boolean) }),
-    };
-
-    createNoteMutation.mutate(noteData);
-  };
-
-  const reset = () => {
-    setTitle("");
-    setContent("");
-    setCollectionId("");
-    setTags("");
-    setFormatting(null);
-  };
-
-  const handleClose = () => {
-    reset();
-    onClose();
+  const removeTag = (tag) => {
+    setTags(tags.filter((t) => t !== tag));
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Quick Save Note</DialogTitle>
-        </DialogHeader>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-card rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b">
+          <h3 className="font-semibold">New Note</h3>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}><X className="h-4 w-4" /></Button>
+        </div>
 
-        <div className="space-y-4">
-          {/* Title */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="note-title">Title</Label>
-            <Input
-              id="note-title"
-              placeholder="Give your note a title..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
+            <Label>Title</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Note title..." className="text-lg font-semibold" />
           </div>
 
-          {/* Content */}
           <div className="space-y-2">
             <Label>Content</Label>
-            <ReactQuill
+            <textarea
               value={content}
-              onChange={setContent}
-              theme="snow"
-              placeholder="Start typing your note..."
-              modules={{
-                toolbar: [
-                  [{ header: [2, 3, false] }],
-                  ["bold", "italic", "underline", "strike"],
-                  [{ list: "ordered" }, { list: "bullet" }],
-                  ["blockquote", "code-block"],
-                  [{ align: [] }],
-                  ["link"],
-                  ["clean"],
-                ],
-              }}
-              className="bg-white rounded-md"
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Write your note here..."
+              className="w-full min-h-[200px] p-3 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
-          {/* AI Format Suggestion */}
-          {content.trim() && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleFormatContent}
-              disabled={loadingFormat}
-              className="gap-2 w-full"
-            >
-              {loadingFormat ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              Improve Formatting with AI
-            </Button>
-          )}
-
-          {/* Formatting suggestions */}
-          {formatting && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-sm font-medium text-blue-900 mb-2">Improvements applied:</p>
-              <ul className="text-xs text-blue-800 space-y-1">
-                {formatting.suggestions.map((suggestion, idx) => (
-                  <li key={idx}>• {suggestion}</li>
-                ))}
-              </ul>
+          <div className="space-y-2">
+            <Label>Tags</Label>
+            <div className="flex gap-2">
+              <Input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                placeholder="Add a tag..."
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+              />
+              <Button variant="outline" onClick={addTag}>Add</Button>
             </div>
-          )}
-
-          {/* Collection (optional) */}
-          <div className="space-y-2">
-            <Label htmlFor="collection">Collection (optional)</Label>
-            <Select value={collectionId} onValueChange={setCollectionId}>
-              <SelectTrigger id="collection">
-                <SelectValue placeholder="Select collection or leave blank" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>No collection</SelectItem>
-                {collections.map((col) => (
-                  <SelectItem key={col.id} value={col.id}>
-                    {col.name}
-                  </SelectItem>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {tags.map((tag, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-secondary text-secondary-foreground">
+                    {tag}
+                    <button onClick={() => removeTag(tag)} className="hover:text-destructive"><X className="h-3 w-3" /></button>
+                  </span>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Tags */}
-          <div className="space-y-2">
-            <Label htmlFor="tags">Tags (comma-separated)</Label>
-            <Input
-              id="tags"
-              placeholder="e.g. urgent, project-x, review"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-            />
+              </div>
+            )}
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!title.trim() || !content.trim() || createNoteMutation.isPending}
-          >
-            {createNoteMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
-            Save Note
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div className="flex gap-2 justify-end px-5 py-4 border-t">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleCreate} disabled={!title.trim() || !content.trim()}>Create Note</Button>
+        </div>
+      </div>
+    </div>
   );
 }

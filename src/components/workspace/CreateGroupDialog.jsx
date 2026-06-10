@@ -1,44 +1,35 @@
 import React, { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { X } from "lucide-react";
 
-export default function CreateGroupDialog({ open, onOpenChange, existingGroups, onCreate }) {
+export default function CreateGroupDialog({ onClose, onCreate }) {
   const [name, setName] = useState("");
 
   const handleCreate = () => {
-    const trimmed = name.trim();
-    if (!trimmed) { toast.error("Please enter a group name"); return; }
-    if (existingGroups.includes(trimmed)) { toast.error("A group with that name already exists"); return; }
-    onCreate(trimmed);
-    setName("");
+    if (!name.trim()) return;
+    onCreate(name.trim());
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>New Workspace Group</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 mt-2">
-          <div className="space-y-1.5">
-            <Label>Group Name</Label>
-            <Input
-              placeholder="e.g. Grant Submission 2024, Insurance Docs..."
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
-              autoFocus
-            />
-          </div>
-          <div className="flex gap-2 justify-end">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={handleCreate}>Create Group</Button>
-          </div>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-card rounded-xl shadow-xl p-6 w-full max-w-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">New Workspace Group</h3>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}><X className="h-4 w-4" /></Button>
         </div>
-      </DialogContent>
-    </Dialog>
+
+        <div className="space-y-2">
+          <Label>Group Name</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Grant Submission 2024" />
+        </div>
+
+        <div className="flex gap-2 justify-end pt-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleCreate} disabled={!name.trim()}>Create Group</Button>
+        </div>
+      </div>
+    </div>
   );
 }

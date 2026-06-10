@@ -1,140 +1,205 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { useAuth } from "@/lib/AuthContext";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderOpen, LayoutGrid, List } from "lucide-react";
-import SearchBar from "@/components/files/SearchBar";
-import FileFilters from "@/components/files/FileFilters";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Plus, Grid, List, Upload, Loader2, SortAsc } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import FileCard from "@/components/files/FileCard";
 import FileListItem from "@/components/files/FileListItem";
-import { canAccessFile, getFileExtension } from "@/lib/fileHelpers";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-
-const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
-const DOC_EXTS = ["doc", "docx"];
-const SHEET_EXTS = ["xls", "xlsx", "csv"];
-const SLIDE_EXTS = ["ppt", "pptx"];
-
-function matchesFileType(file, typeFilter) {
-  if (typeFilter === "all") return true;
-  const ext = getFileExtension(file.original_name);
-  if (typeFilter === "pdf") return ext === "pdf";
-  if (typeFilter === "doc") return DOC_EXTS.includes(ext);
-  if (typeFilter === "xls") return SHEET_EXTS.includes(ext);
-  if (typeFilter === "ppt") return SLIDE_EXTS.includes(ext);
-  if (typeFilter === "image") return IMAGE_EXTS.includes(ext);
-  return !["pdf", ...DOC_EXTS, ...SHEET_EXTS, ...SLIDE_EXTS, ...IMAGE_EXTS].includes(ext);
-}
+import FileFilters from "@/components/files/FileFilters";
+import SearchBar from "@/components/files/SearchBar";
+import FileSortingDialog from "@/components/files/FileSortingDialog";
+import { canAccessFile } from "@/lib/fileHelpers";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function FileBrowser() {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const urlParams = new URLSearchParams(window.location.search);
-
+  const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
   const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState("grid");
   const [filters, setFilters] = useState({
-    category: urlParams.get("category") || "all",
-    access: urlParams.get("access") || "all",
+    category: "all",
+    access: "all",
     fileType: "all",
     sort: "-created_date",
   });
+  const [showSorting, setShowSorting] = useState(false);
+  const [filesToSort, setFilesToSort] = useState([]);
 
-  const { data: allFiles = [], isLoading } = useQuery({
-    queryKey: ["files"],
-    queryFn: () => base44.entities.File.list("-created_date", 500),
+  const queryClient = useQueryClient();
+
+  const { data: files = [], isLoading, refetch } = useQuery({
+    queryKey: ["files", filters, search],
+    queryFn: async () => {
+      const allFiles = await base44.entities.File.list("-created_date", 1000);
+      return allFiles.filter((f) => canAccessFile(f, user));
+    },
   });
 
+  const deleteFileMutation = useMutation({
+    mutationFn: (id) => base44.entities.File.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["files"] });
+      toast.success("File deleted");
+    },
+  });
+
+  const handleDelete = (file) => {
+    if (window.confirm(`Delete "${file.display_name || file.original_name}"?`)) {
+      deleteFileMutation.mutate(file.id);
+    }
+  };
+
+  const unsortedFiles = useMemo(() => files.filter((f) => f.category === "to_be_sorted"), [files]);
+
   const filteredFiles = useMemo(() => {
-    let files = allFiles.filter((f) => canAccessFile(f, user));
+    let result = [...files];
 
-    if (filters.category !== "all") files = files.filter((f) => f.category === filters.category);
-    if (filters.access !== "all") files = files.filter((f) => f.access_level === filters.access);
-    if (filters.fileType !== "all") files = files.filter((f) => matchesFileType(f, filters.fileType));
-
-    if (search.trim()) {
+    if (search) {
       const q = search.toLowerCase();
-      files = files.filter((f) =>
-        f.display_name?.toLowerCase().includes(q) ||
-        f.original_name?.toLowerCase().includes(q) ||
-        f.description?.toLowerCase().includes(q) ||
-        f.standardized_name?.toLowerCase().includes(q) ||
-        f.keywords?.some((kw) => kw.toLowerCase().includes(q)) ||
-        f.file_type?.toLowerCase().includes(q) ||
-        f.category?.toLowerCase().includes(q)
+      result = result.filter(
+        (f) =>
+          (f.display_name || f.original_name || "").toLowerCase().includes(q) ||
+          (f.description || "").toLowerCase().includes(q) ||
+          (f.keywords || []).some((k) => k.toLowerCase().includes(q))
       );
     }
 
-    // Sort
-    if (filters.sort === "display_name") {
-      files.sort((a, b) => (a.display_name || "").localeCompare(b.display_name || ""));
-    } else if (filters.sort === "-display_name") {
-      files.sort((a, b) => (b.display_name || "").localeCompare(a.display_name || ""));
-    } else if (filters.sort === "created_date") {
-      files.sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+    if (filters.category !== "all") {
+      result = result.filter((f) => f.category === filters.category);
     }
-    // default: -created_date (already sorted from API)
 
-    return files;
-  }, [allFiles, user, filters, search]);
+    if (filters.access !== "all") {
+      result = result.filter((f) => f.access_level === filters.access);
+    }
 
-  const handleDelete = async (file) => {
-    if (!confirm(`Delete "${file.display_name || file.original_name}"?`)) return;
-    await base44.entities.File.delete(file.id);
-    queryClient.invalidateQueries({ queryKey: ["files"] });
-    toast.success("File deleted");
-  };
+    if (filters.fileType !== "all") {
+      result = result.filter((f) => {
+        const ext = (f.file_type || "").toLowerCase();
+        if (filters.fileType === "image") return ["png", "jpg", "jpeg", "gif", "webp"].includes(ext);
+        if (filters.fileType === "pdf") return ext === "pdf";
+        if (filters.fileType === "doc") return ["doc", "docx"].includes(ext);
+        if (filters.fileType === "xls") return ["xls", "xlsx", "csv"].includes(ext);
+        if (filters.fileType === "ppt") return ["ppt", "pptx"].includes(ext);
+        return true;
+      });
+    }
 
-  const accessTitle = filters.access === "manager" ? "Manager Files" :
-    filters.access === "universal" ? "Universal Files" :
-    filters.access === "personal" ? "My Personal Files" :
-    filters.access === "finance" ? "Finance Files" :
-    filters.access === "corporate" ? "Corporate Files" : "All Files";
+    const sortKey = filters.sort.replace("-", "");
+    const desc = filters.sort.startsWith("-");
+    result.sort((a, b) => {
+      let aVal = a[sortKey];
+      let bVal = b[sortKey];
+      if (sortKey === "display_name" || sortKey === "original_name") {
+        aVal = (a.display_name || a.original_name || "").toLowerCase();
+        bVal = (b.display_name || b.original_name || "").toLowerCase();
+        return desc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
+      }
+      if (sortKey === "created_date") {
+        return desc ? new Date(bVal) - new Date(aVal) : new Date(aVal) - new Date(bVal);
+      }
+      return 0;
+    });
+
+    return result;
+  }, [files, search, filters]);
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6 max-w-[1600px] mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold">{accessTitle}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{filteredFiles.length} files</p>
+          <h1 className="text-2xl font-bold">File Browser</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {filteredFiles.length} file{filteredFiles.length !== 1 ? "s" : ""}
+            {unsortedFiles.length > 0 && (
+              <span className="ml-2 text-amber-600">
+                · {unsortedFiles.length} need sorting
+              </span>
+            )}
+          </p>
         </div>
-        <div className="flex items-center gap-1 border rounded-lg p-1">
-          <Button variant={viewMode === "grid" ? "secondary" : "ghost"} size="icon" className="h-7 w-7" onClick={() => setViewMode("grid")}>
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-          <Button variant={viewMode === "list" ? "secondary" : "ghost"} size="icon" className="h-7 w-7" onClick={() => setViewMode("list")}>
-            <List className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center gap-2">
+          {unsortedFiles.length > 0 && (
+            <Button variant="outline" size="sm" className="gap-1" onClick={() => {
+              setFilesToSort(unsortedFiles);
+              setShowSorting(true);
+            }}>
+              <SortAsc className="h-4 w-4" /> Sort {unsortedFiles.length}
+            </Button>
+          )}
+          <Link to="/upload">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" /> Upload File
+            </Button>
+          </Link>
         </div>
       </div>
 
-      <SearchBar value={search} onChange={setSearch} placeholder="Search by name, description, keywords, type..." />
-      <FileFilters filters={filters} onFilterChange={setFilters} />
+      {/* Search + Filters */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <SearchBar value={search} onChange={setSearch} placeholder="Search files by name, description, or keywords..." />
+        <FileFilters filters={filters} onFilterChange={setFilters} />
+        <div className="ml-auto flex items-center gap-1 border rounded-lg p-1">
+          <button
+            onClick={() => setViewMode("grid")}
+            className={`h-8 px-3 rounded-md text-sm font-medium transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+          >
+            <Grid className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setViewMode("list")}
+            className={`h-8 px-3 rounded-md text-sm font-medium transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+          >
+            <List className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center h-40">
-          <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" />
-        </div>
-      ) : filteredFiles.length === 0 ? (
+      {/* Files */}
+      {filteredFiles.length === 0 ? (
         <div className="text-center py-16">
-          <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-          <p className="text-muted-foreground font-medium">No files found</p>
-          <p className="text-sm text-muted-foreground mt-1">Try adjusting your search or filters</p>
+          <p className="text-muted-foreground">No files found. Upload your first file!</p>
+          <Link to="/upload">
+            <Button className="mt-4 gap-2">
+              <Upload className="h-4 w-4" /> Upload File
+            </Button>
+          </Link>
         </div>
-      ) : viewMode === "list" ? (
-        <div className="space-y-1.5">
+      ) : viewMode === "grid" ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredFiles.map((file, i) => (
-            <FileListItem key={file.id} file={file} index={i} onDelete={handleDelete} />
+            <FileCard key={file.id} file={file} onDelete={handleDelete} index={i} />
           ))}
         </div>
       ) : (
-        <div className="grid gap-3">
+        <div className="space-y-2">
           {filteredFiles.map((file, i) => (
-            <FileCard key={file.id} file={file} index={i} onDelete={handleDelete} />
+            <FileListItem key={file.id} file={file} onDelete={handleDelete} index={i} />
           ))}
         </div>
       )}
+
+      {/* Sorting Dialog */}
+      <FileSortingDialog
+        files={filesToSort}
+        open={showSorting}
+        onOpenChange={(v) => {
+          setShowSorting(v);
+          if (!v) {
+            refetch();
+          }
+        }}
+      />
     </div>
   );
 }

@@ -44,7 +44,7 @@ export default function FileListItem({ file, onDelete, index = 0 }) {
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-xs text-muted-foreground uppercase font-medium">{ext}</span>
               <span className="text-xs text-muted-foreground">{formatFileSize(file.file_size)}</span>
-              <Badge variant="outline" className="text-xs px-1.5 py-0 capitalize h-4">{file.category?.replace(/_/g, " ")}</Badge>
+              <Badge variant="outline" className="text-xs px-1.5 py-0 capitalize">{file.category?.replace(/_/g, " ")}</Badge>
               <span className={`text-xs flex items-center gap-0.5 ${accessColors[file.access_level] || "text-muted-foreground"}`}>
                 <AccessIcon className="h-3 w-3" />
                 {file.access_level}

@@ -52,16 +52,6 @@ export default function FileSortingDialog({ files = [], open, onOpenChange }) {
     handleNext();
   };
 
-  const handleBulkApply = async () => {
-    const promises = Object.entries(categories).map(([id, category]) => {
-      if (category !== "to_be_sorted") {
-        return updateFileMutation.mutateAsync({ id, category });
-      }
-    });
-    await Promise.all(promises);
-    onOpenChange(false);
-  };
-
   if (!current) return null;
 
   const ext = current.original_name?.split(".").pop()?.toLowerCase() || "";
@@ -74,14 +64,12 @@ export default function FileSortingDialog({ files = [], open, onOpenChange }) {
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* File Info */}
           <div className="p-4 bg-muted rounded-lg">
             <p className="font-medium text-sm">{current.display_name || current.original_name}</p>
             <p className="text-xs text-muted-foreground mt-1">Size: {(current.file_size / 1024 / 1024).toFixed(2)} MB</p>
             {ext && <Badge className="mt-2 text-xs capitalize">{ext}</Badge>}
           </div>
 
-          {/* Category Selector */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Select Category</label>
             <Select value={currentCategory} onValueChange={handleCategoryChange}>
@@ -98,7 +86,6 @@ export default function FileSortingDialog({ files = [], open, onOpenChange }) {
             </Select>
           </div>
 
-          {/* Progress */}
           <div className="flex gap-1">
             {files.map((_, i) => (
               <div
@@ -114,7 +101,6 @@ export default function FileSortingDialog({ files = [], open, onOpenChange }) {
             ))}
           </div>
 
-          {/* Actions */}
           <div className="flex gap-2 justify-between">
             <Button variant="outline" size="sm" onClick={handleSkip} className="gap-1">
               <X className="h-4 w-4" /> Skip
@@ -129,20 +115,6 @@ export default function FileSortingDialog({ files = [], open, onOpenChange }) {
               </Button>
             </div>
           </div>
-
-          {/* Bulk Apply */}
-          {currentIndex === 0 && (
-            <div className="pt-4 border-t text-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBulkApply}
-                className="text-xs text-muted-foreground"
-              >
-                Or bulk apply all categorized files
-              </Button>
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>

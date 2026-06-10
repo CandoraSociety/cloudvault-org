@@ -40,7 +40,6 @@ export default function FileUploader({ onUploadComplete }) {
     setFile(f);
     setUploadedUrl(null);
     setDisplayName(f.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
-    // Pre-upload so CategorySelector can read the file for AI analysis
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file: f });
       setUploadedUrl(file_url);
@@ -70,42 +69,15 @@ export default function FileUploader({ onUploadComplete }) {
     setKeywords(keywords.filter((k) => k !== kw));
   };
 
-  const generateSummary = async (fileUrl) => {
-    setGenerating(true);
-    const ext = getFileExtension(file.name);
-    const supportedForExtraction = ["pdf", "docx", "doc", "xlsx", "xls", "csv", "txt", "png", "jpg", "jpeg", "html"];
-
-    let summaryText = "";
-    if (supportedForExtraction.includes(ext)) {
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `Generate a concise 2-3 sentence summary of this file. Focus on the key content, purpose, and any important details. File name: ${file.name}. Description: ${description || "none provided"}.`,
-        file_urls: [fileUrl],
-      });
-      summaryText = result;
-    } else {
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `Generate a concise 2-3 sentence summary/description for a file named "${file.name}" in the "${category}" category. Description provided: "${description || "none"}". Keywords: ${keywords.join(", ") || "none"}. Infer what this file likely contains.`,
-      });
-      summaryText = result;
-    }
-    setGenerating(false);
-    return summaryText;
-  };
-
   const handleUpload = async () => {
     if (!file) return;
     setUploading(true);
 
-    // Reuse pre-uploaded URL if available, otherwise upload now
     let file_url = uploadedUrl;
     if (!file_url) {
       const result = await base44.integrations.Core.UploadFile({ file });
       file_url = result.file_url;
     }
-
-    let summary = "";
-    summary = await generateSummary(file_url);
-
 
     const standardizedName = generateStandardizedName(file.name, category, accessLevel);
 
@@ -114,7 +86,7 @@ export default function FileUploader({ onUploadComplete }) {
       standardized_name: standardizedName,
       display_name: displayName || file.name,
       description,
-      summary: typeof summary === "string" ? summary : JSON.stringify(summary),
+      summary: description || "",
       keywords,
       file_url,
       file_type: getFileExtension(file.name),
@@ -127,7 +99,6 @@ export default function FileUploader({ onUploadComplete }) {
       owner_name: user?.full_name,
     });
 
-    // Increment usage count for the chosen category
     const catRecord = categories.find((c) => c.value === category);
     if (catRecord) {
       await base44.entities.FileCategory.update(catRecord.id, { usage_count: (catRecord.usage_count || 0) + 1 });
@@ -151,7 +122,6 @@ export default function FileUploader({ onUploadComplete }) {
 
   return (
     <div className="space-y-6">
-      {/* Dropzone */}
       <div
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
@@ -181,7 +151,6 @@ export default function FileUploader({ onUploadComplete }) {
         </AnimatePresence>
       </div>
 
-      {/* Form fields */}
       <AnimatePresence>
         {file && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-5">
@@ -230,50 +199,6 @@ export default function FileUploader({ onUploadComplete }) {
               </div>
             </div>
 
-            {accessLevel === "finance" && (
-              <div className="space-y-2">
-                <Label>Authorized Emails</Label>
-                <p className="text-xs text-muted-foreground">Add specific individuals who can access this finance file (in addition to Finance role users and Admins).</p>
-                <div className="flex gap-2">
-                  <Input
-                    value={financeEmailInput}
-                    onChange={(e) => setFinanceEmailInput(e.target.value)}
-                    placeholder="user@company.com"
-                    type="email"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const em = financeEmailInput.trim().toLowerCase();
-                        if (em && !financeEmails.includes(em)) {
-                          setFinanceEmails([...financeEmails, em]);
-                          setFinanceEmailInput("");
-                        }
-                      }
-                    }}
-                  />
-                  <Button variant="outline" type="button" onClick={() => {
-                    const em = financeEmailInput.trim().toLowerCase();
-                    if (em && !financeEmails.includes(em)) {
-                      setFinanceEmails([...financeEmails, em]);
-                      setFinanceEmailInput("");
-                    }
-                  }}>Add</Button>
-                </div>
-                {financeEmails.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {financeEmails.map((em) => (
-                      <Badge key={em} variant="secondary" className="gap-1 pr-1">
-                        {em}
-                        <button onClick={() => setFinanceEmails(financeEmails.filter((e) => e !== em))} className="hover:text-destructive">
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             <div className="space-y-2">
               <Label>Description</Label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description of the file contents..." rows={3} />
@@ -304,7 +229,6 @@ export default function FileUploader({ onUploadComplete }) {
               )}
             </div>
 
-            {/* Preview standardized name */}
             <Card className="p-3 bg-muted/50">
               <p className="text-xs text-muted-foreground font-medium mb-1">Standardized File Name</p>
               <p className="text-sm font-mono">{generateStandardizedName(file.name, category, accessLevel)}</p>
@@ -312,13 +236,7 @@ export default function FileUploader({ onUploadComplete }) {
 
             <Button className="w-full gap-2 h-11" onClick={handleUpload} disabled={uploading}>
               {uploading ? (
-                <>
-                  {generating ? (
-                    <><Sparkles className="h-4 w-4 animate-pulse" /> Generating Summary...</>
-                  ) : (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</>
-                  )}
-                </>
+                <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</>
               ) : (
                 <><Upload className="h-4 w-4" /> Upload File</>
               )}

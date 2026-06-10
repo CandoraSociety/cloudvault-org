@@ -1,22 +1,35 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { StickyNote } from "lucide-react";
+import { Plus, StickyNote } from "lucide-react";
 import QuickNoteModal from "./QuickNoteModal";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function FloatingNoteButton() {
-  const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [showModal, setShowModal] = useState(false);
 
   return (
     <>
       <Button
-        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
         size="icon"
-        className="fixed bottom-6 right-6 h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-shadow"
-        title="Quick note"
+        onClick={() => setShowModal(true)}
       >
-        <StickyNote className="h-5 w-5" />
+        <Plus className="h-6 w-6" />
       </Button>
-      <QuickNoteModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
+
+      {showModal && (
+        <QuickNoteModal
+          onClose={() => setShowModal(false)}
+          onCreate={(newNote) => {
+            setShowModal(false);
+            navigate(`/notes?id=${newNote.id}`);
+          }}
+        />
+      )}
     </>
   );
 }

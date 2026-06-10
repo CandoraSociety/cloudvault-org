@@ -13,11 +13,12 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div>
+    <div className="p-6 max-w-3xl mx-auto">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold">Upload File</h1>
-        <p className="text-sm text-muted-foreground mt-1">Add a new file to your organization's cloud vault</p>
+        <p className="text-sm text-muted-foreground mt-1">Add a new file to the vault</p>
       </div>
+
       <FileUploader onUploadComplete={handleComplete} />
     </div>
   );

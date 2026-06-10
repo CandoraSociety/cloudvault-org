@@ -1,214 +1,269 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, Search, Loader2, Trash2, Pin, Copy, Archive } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Trash2, Pin, PinOff, ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
+import QuickNoteModal from "@/components/notes/QuickNoteModal";
+import { useAuth } from "@/lib/AuthContext";
 
-export default function NotesPage() {
+export default function Notes() {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [collectionFilter, setCollectionFilter] = useState("");
-  const [selectedNote, setSelectedNote] = useState(null);
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [showQuickNote, setShowQuickNote] = useState(false);
+  const [editingNote, setEditingNote] = useState(null);
 
-  // Fetch notes
-  const { data: notes = [], isLoading: notesLoading } = useQuery({
+  const urlParams = new URLSearchParams(window.location.search);
+  const noteIdFromUrl = urlParams.get("id");
+
+  const { data: notes = [], isLoading } = useQuery({
     queryKey: ["notes"],
-    queryFn: () => base44.entities.Note.list("-updated_date", 100),
+    queryFn: () => base44.entities.Note.filter({ owner_email: user?.email }, "-created_date"),
   });
 
-  // Fetch collections
-  const { data: collections = [] } = useQuery({
-    queryKey: ["collections"],
-    queryFn: () => base44.entities.Collection.list(),
-  });
-
-  // Delete note mutation
   const deleteNoteMutation = useMutation({
     mutationFn: (id) => base44.entities.Note.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
-      setSelectedNote(null);
+      toast.success("Note deleted");
+      setEditingNote(null);
     },
   });
 
-  // Pin/unpin mutation
   const togglePinMutation = useMutation({
-    mutationFn: (noteData) => base44.entities.Note.update(noteData.id, { is_pinned: noteData.is_pinned }),
+    mutationFn: ({ id, is_pinned }) =>
+      base44.entities.Note.update(id, { is_pinned }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
     },
   });
 
-  // Filter notes
-  const filteredNotes = notes.filter((note) => {
-    const matchesSearch =
-      note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      note.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (note.tags || []).some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+  useEffect(() => {
+    if (noteIdFromUrl && notes.length > 0) {
+      const note = notes.find((n) => n.id === noteIdFromUrl);
+      if (note) setEditingNote(note);
+    }
+  }, [noteIdFromUrl, notes]);
 
-    const matchesCollection = !collectionFilter || note.collection_id === collectionFilter;
+  const filteredNotes = notes.filter(
+    (n) =>
+      n.title.toLowerCase().includes(search.toLowerCase()) ||
+      n.content.toLowerCase().includes(search.toLowerCase()) ||
+      (n.tags || []).some((t) => t.toLowerCase().includes(search.toLowerCase()))
+  );
 
-    return matchesSearch && matchesCollection;
-  });
+  const pinnedNotes = filteredNotes.filter((n) => n.is_pinned);
+  const otherNotes = filteredNotes.filter((n) => !n.is_pinned);
 
-  const getCollectionName = (collectionId) => {
-    return collections.find((c) => c.id === collectionId)?.name || "No collection";
-  };
-
-  if (selectedNote) {
+  if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <Button variant="ghost" onClick={() => setSelectedNote(null)} className="mb-4 gap-2">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Button>
+      <div className="fixed inset-0 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
-        <Card>
-          <CardHeader className="flex flex-row items-start justify-between">
-            <div className="flex-1">
-              <CardTitle className="text-2xl mb-2">{selectedNote.title}</CardTitle>
-              {selectedNote.collection_id && (
-                <Badge variant="secondary" className="mb-2">
-                  {getCollectionName(selectedNote.collection_id)}
-                </Badge>
-              )}
-              {selectedNote.tags && selectedNote.tags.length > 0 && (
-                <div className="flex gap-2 flex-wrap">
-                  {selectedNote.tags.map((tag) => (
-                    <Badge key={tag} variant="outline">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() =>
-                  togglePinMutation.mutate({
-                    id: selectedNote.id,
-                    is_pinned: !selectedNote.is_pinned,
-                  })
-                }
-              >
-                {selectedNote.is_pinned ? (
-                  <PinOff className="h-4 w-4" />
-                ) : (
-                  <Pin className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => deleteNoteMutation.mutate(selectedNote.id)}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div
-              className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: selectedNote.content }}
-            />
-          </CardContent>
-        </Card>
+  if (editingNote) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto space-y-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => {
+            setEditingNote(null);
+            navigate("/notes");
+          }}>
+            <Archive className="h-4 w-4" />
+          </Button>
+          <Input
+            value={editingNote.title}
+            onChange={(e) => setEditingNote({ ...editingNote, title: e.target.value })}
+            placeholder="Note title..."
+            className="text-lg font-semibold border-0"
+          />
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => togglePinMutation.mutate({ id: editingNote.id, is_pinned: !editingNote.is_pinned })}
+            >
+              <Pin className={`h-4 w-4 mr-1 ${editingNote.is_pinned ? "fill-current" : ""}`} />
+              {editingNote.is_pinned ? "Pinned" : "Pin"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(editingNote.content.replace(/<[^>]*>/g, ""));
+                toast.success("Content copied");
+              }}
+            >
+              <Copy className="h-4 w-4 mr-1" /> Copy
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDelete(editingNote)}
+            >
+              <Trash2 className="h-4 w-4 mr-1" /> Delete
+            </Button>
+            <Button
+              size="sm"
+              onClick={async () => {
+                await base44.entities.Note.update(editingNote.id, editingNote);
+                toast.success("Note saved");
+                queryClient.invalidateQueries({ queryKey: ["notes"] });
+              }}
+            >
+              Save
+            </Button>
+          </div>
+        </div>
+        <ReactQuill
+          value={editingNote.content}
+          onChange={(content) => setEditingNote({ ...editingNote, content })}
+          theme="snow"
+          className="bg-white rounded-lg"
+          style={{ minHeight: "60vh" }}
+        />
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-4">Notes</h1>
-
-        <div className="flex gap-3 flex-wrap">
-          <div className="flex-1 min-w-64 relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search notes by title, content, or tags..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-
-          <Select value={collectionFilter} onValueChange={setCollectionFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All collections" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={null}>All collections</SelectItem>
-              {collections.map((col) => (
-                <SelectItem key={col.id} value={col.id}>
-                  {col.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Notes</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {notes.length} note{notes.length !== 1 ? "s" : ""}
+          </p>
         </div>
+        <Button onClick={() => setShowQuickNote(true)} className="gap-2">
+          <Plus className="h-4 w-4" /> New Note
+        </Button>
       </div>
 
-      {notesLoading ? (
-        <div className="text-center py-12">
-          <div className="inline-block w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search notes..."
+          className="pl-10"
+        />
+      </div>
+
+      {/* Pinned Notes */}
+      {pinnedNotes.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+            <Pin className="h-4 w-4" /> Pinned
+          </h2>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {pinnedNotes.map((note) => (
+              <NoteCard
+                key={note.id}
+                note={note}
+                onClick={() => setEditingNote(note)}
+                onDelete={() => handleDelete(note)}
+                onTogglePin={() => togglePinMutation.mutate({ id: note.id, is_pinned: false })}
+              />
+            ))}
+          </div>
         </div>
-      ) : filteredNotes.length === 0 ? (
-        <Card className="text-center py-12">
-          <p className="text-muted-foreground">No notes found</p>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredNotes.map((note) => (
-            <Card
-              key={note.id}
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => setSelectedNote(note)}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base line-clamp-2">{note.title}</CardTitle>
-                  {note.is_pinned && <Pin className="h-4 w-4 text-primary shrink-0" />}
-                </div>
-                {note.collection_id && (
-                  <Badge variant="secondary" className="w-fit text-xs">
-                    {getCollectionName(note.collection_id)}
-                  </Badge>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div
-                  className="text-sm text-muted-foreground line-clamp-3"
-                  dangerouslySetInnerHTML={{
-                    __html: note.content.replace(/<[^>]*>/g, ""),
-                  }}
-                />
-                {note.tags && note.tags.length > 0 && (
-                  <div className="flex gap-1 mt-3 flex-wrap">
-                    {note.tags.slice(0, 2).map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {note.tags.length > 2 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{note.tags.length - 2}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+      )}
+
+      {/* All Notes */}
+      {otherNotes.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            All Notes
+          </h2>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {otherNotes.map((note) => (
+              <NoteCard
+                key={note.id}
+                note={note}
+                onClick={() => setEditingNote(note)}
+                onDelete={() => handleDelete(note)}
+                onTogglePin={() => togglePinMutation.mutate({ id: note.id, is_pinned: true })}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {filteredNotes.length === 0 && (
+        <div className="text-center py-16">
+          <p className="text-muted-foreground">No notes found. Create your first note!</p>
+          <Button onClick={() => setShowQuickNote(true)} className="mt-4 gap-2">
+            <Plus className="h-4 w-4" /> Create Note
+          </Button>
+        </div>
+      )}
+
+      {/* Quick Note Modal */}
+      {showQuickNote && (
+        <QuickNoteModal
+          onClose={() => setShowQuickNote(false)}
+          onCreate={(newNote) => {
+            queryClient.invalidateQueries({ queryKey: ["notes"] });
+            setShowQuickNote(false);
+            setEditingNote(newNote);
+          }}
+        />
+      )}
+    </div>
+  );
+
+  function handleDelete(note) {
+    if (window.confirm(`Delete note "${note.title}"?`)) {
+      deleteNoteMutation.mutate(note.id);
+    }
+  }
+}
+
+function NoteCard({ note, onClick, onDelete, onTogglePin }) {
+  return (
+    <Card
+      className="p-4 cursor-pointer hover:shadow-md transition-all group"
+      onClick={onClick}
+    >
+      <div className="flex items-start justify-between mb-2">
+        <h3 className="font-semibold text-sm flex items-center gap-2">
+          {note.is_pinned && <Pin className="h-3 w-3 text-primary" />}
+          {note.title}
+        </h3>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={(e) => { e.stopPropagation(); onTogglePin(); }} className="text-muted-foreground hover:text-foreground">
+            <Pin className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-muted-foreground hover:text-destructive">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground line-clamp-3">
+        {note.content.replace(/<[^>]*>/g, "")}
+      </p>
+      {note.tags?.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-3">
+          {note.tags.slice(0, 3).map((tag, i) => (
+            <Badge key={i} variant="secondary" className="text-xs">
+              {tag}
+            </Badge>
           ))}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
